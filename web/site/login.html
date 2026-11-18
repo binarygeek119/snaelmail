@@ -209,6 +209,7 @@
                 localStorage.setItem('authToken', data.token);
                 localStorage.setItem('userId', data.user_id);
                 localStorage.setItem('handle', data.handle);
+                localStorage.setItem('userEmail', data.address || (data.handle + '@snaelmail.org'));
                 
                 // Redirect to dashboard
                 window.location.href = '/dashboard.html';

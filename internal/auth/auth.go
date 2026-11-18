@@ -35,7 +35,20 @@ var (
 	ErrHandleReserved       = errors.New("auth: handle is reserved")
 	ErrPasswordTooShort     = errors.New("auth: password must be at least 10 characters")
 	ErrPasswordCommon       = errors.New("auth: password is too common")
+	ErrEmailInvalid         = errors.New("auth: invalid email address")
+	ErrEmailDomainNotAllowed = errors.New("auth: email domain not supported")
 )
+
+// Allowed email domains for signup
+var allowedEmailDomains = map[string]bool{
+	"gmail.com":    true,
+	"googlemail.com": true,
+	"outlook.com":  true,
+	"hotmail.com":  true,
+	"live.com":     true,
+	"yahoo.com":    true,
+	"aol.com":      true,
+}
 
 // ValidateHandle checks a handle against §6 rules.
 func ValidateHandle(handle string) error {
@@ -164,4 +177,48 @@ func GenerateCode() (string, error) {
 		b[i] = chars[int(buf[0])%len(chars)]
 	}
 	return string(b), nil
+}
+
+// ValidateEmail checks if an email address is valid and from an allowed domain.
+func ValidateEmail(email string) error {
+	email = strings.ToLower(strings.TrimSpace(email))
+	
+	// Basic email format validation
+	emailRegex := regexp.MustCompile(`^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$`)
+	if !emailRegex.MatchString(email) {
+		return ErrEmailInvalid
+	}
+	
+	// Extract domain
+	parts := strings.Split(email, "@")
+	if len(parts) != 2 {
+		return ErrEmailInvalid
+	}
+	domain := parts[1]
+	
+	// Check if domain is allowed
+	if !allowedEmailDomains[domain] {
+		return ErrEmailDomainNotAllowed
+	}
+	
+	return nil
+}
+
+// GetEmailDomain extracts the domain from an email address.
+func GetEmailDomain(email string) string {
+	email = strings.ToLower(strings.TrimSpace(email))
+	parts := strings.Split(email, "@")
+	if len(parts) != 2 {
+		return ""
+	}
+	return parts[1]
+}
+
+// GetAllowedDomains returns the list of allowed email domains.
+func GetAllowedDomains() []string {
+	domains := make([]string, 0, len(allowedEmailDomains))
+	for domain := range allowedEmailDomains {
+		domains = append(domains, domain)
+	}
+	return domains
 }

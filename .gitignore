@@ -68,3 +68,7 @@ config.local.toml
 # Build artifacts
 build/
 dist/
+
+# Google Cloud SDK (downloaded locally)
+google-cloud-sdk/
+google-cloud-cli-*.tar.gz

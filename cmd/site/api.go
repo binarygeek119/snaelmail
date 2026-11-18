@@ -17,6 +17,7 @@ func (app *appState) apiSignup(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Handle      string     `json:"handle"`
 		Password    string     `json:"password"`
+		Email       string     `json:"email"`
 		DisplayName *string    `json:"display_name,omitempty"`
 		HomeRelayID *uuid.UUID `json:"home_relay_id,omitempty"`
 	}
@@ -31,6 +32,12 @@ func (app *appState) apiSignup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Validate email
+	if err := auth.ValidateEmail(req.Email); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
+		return
+	}
+
 	// Check handle availability
 	existing, err := app.store.GetUserByHandle(r.Context(), req.Handle)
 	if err != nil {
@@ -39,6 +46,17 @@ func (app *appState) apiSignup(w http.ResponseWriter, r *http.Request) {
 	}
 	if existing != nil {
 		writeJSON(w, http.StatusConflict, map[string]string{"error": "handle already taken"})
+		return
+	}
+
+	// Check email availability
+	existingByEmail, err := app.store.GetUserByEmail(r.Context(), req.Email)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "database error"})
+		return
+	}
+	if existingByEmail != nil {
+		writeJSON(w, http.StatusConflict, map[string]string{"error": "email already registered"})
 		return
 	}
 
@@ -59,7 +77,8 @@ func (app *appState) apiSignup(w http.ResponseWriter, r *http.Request) {
 	address := strings.ToLower(req.Handle) + "@" + app.cfg.MailDomain
 
 	// Create user
-	user, err := app.store.CreateUser(r.Context(), req.Handle, address, passHash, req.DisplayName, req.HomeRelayID)
+	email := req.Email
+	user, err := app.store.CreateUser(r.Context(), req.Handle, address, passHash, &email, req.DisplayName, req.HomeRelayID)
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to create user"})
 		return
@@ -81,10 +100,15 @@ func (app *appState) apiSignup(w http.ResponseWriter, r *http.Request) {
 
 	// In a real system, we'd queue an internal letter with the code
 	// For now, return it directly (dev mode)
+	var emailStr string
+	if user.Email != nil {
+		emailStr = *user.Email
+	}
 	writeJSON(w, http.StatusCreated, map[string]any{
 		"user_id":          user.ID,
 		"handle":           user.Handle,
 		"address":          user.Address,
+		"email":            emailStr,
 		"status":           user.Status,
 		"verification_code": code, // Remove in production
 	})
@@ -163,6 +187,7 @@ func (app *appState) apiSession(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{
 		"user_id": user.ID,
 		"handle":  user.Handle,
+		"address": user.Address,
 		"token":   token,
 	})
 }

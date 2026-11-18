@@ -17,6 +17,7 @@ type User struct {
 	ID                uuid.UUID
 	Handle            string
 	Address           string
+	Email             *string
 	PassHash          string
 	DisplayName       *string
 	HomeRelayID       *uuid.UUID
@@ -29,16 +30,16 @@ type User struct {
 }
 
 // CreateUser inserts a new user. Returns the created user with generated fields.
-func (s *Store) CreateUser(ctx context.Context, handle, address, passHash string, displayName *string, homeRelayID *uuid.UUID) (*User, error) {
+func (s *Store) CreateUser(ctx context.Context, handle, address, passHash string, email *string, displayName *string, homeRelayID *uuid.UUID) (*User, error) {
 	id := uuid.New()
 	var u User
 	err := s.pool.QueryRow(ctx, `
-		INSERT INTO users (id, handle, address, pass_hash, display_name, home_relay_id, status)
-		VALUES ($1, $2, $3, $4, $5, $6, 'unverified')
-		RETURNING id, handle, address, pass_hash, display_name, home_relay_id,
+		INSERT INTO users (id, handle, address, email, pass_hash, display_name, home_relay_id, status)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, 'unverified')
+		RETURNING id, handle, address, email, pass_hash, display_name, home_relay_id,
 		          home_relay_changed_at, status, storage_bytes, letters_today, quota_day, created_at
-	`, id, handle, address, passHash, displayName, homeRelayID).Scan(
-		&u.ID, &u.Handle, &u.Address, &u.PassHash, &u.DisplayName, &u.HomeRelayID,
+	`, id, handle, address, email, passHash, displayName, homeRelayID).Scan(
+		&u.ID, &u.Handle, &u.Address, &u.Email, &u.PassHash, &u.DisplayName, &u.HomeRelayID,
 		&u.HomeRelayChangedAt, &u.Status, &u.StorageBytes, &u.LettersToday, &u.QuotaDay, &u.CreatedAt,
 	)
 	if err != nil {
@@ -51,11 +52,11 @@ func (s *Store) CreateUser(ctx context.Context, handle, address, passHash string
 func (s *Store) GetUserByID(ctx context.Context, id uuid.UUID) (*User, error) {
 	var u User
 	err := s.pool.QueryRow(ctx, `
-		SELECT id, handle, address, pass_hash, display_name, home_relay_id,
+		SELECT id, handle, address, email, pass_hash, display_name, home_relay_id,
 		       home_relay_changed_at, status, storage_bytes, letters_today, quota_day, created_at
 		FROM users WHERE id = $1
 	`, id).Scan(
-		&u.ID, &u.Handle, &u.Address, &u.PassHash, &u.DisplayName, &u.HomeRelayID,
+		&u.ID, &u.Handle, &u.Address, &u.Email, &u.PassHash, &u.DisplayName, &u.HomeRelayID,
 		&u.HomeRelayChangedAt, &u.Status, &u.StorageBytes, &u.LettersToday, &u.QuotaDay, &u.CreatedAt,
 	)
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -71,11 +72,11 @@ func (s *Store) GetUserByID(ctx context.Context, id uuid.UUID) (*User, error) {
 func (s *Store) GetUserByHandle(ctx context.Context, handle string) (*User, error) {
 	var u User
 	err := s.pool.QueryRow(ctx, `
-		SELECT id, handle, address, pass_hash, display_name, home_relay_id,
+		SELECT id, handle, address, email, pass_hash, display_name, home_relay_id,
 		       home_relay_changed_at, status, storage_bytes, letters_today, quota_day, created_at
 		FROM users WHERE handle = $1
 	`, handle).Scan(
-		&u.ID, &u.Handle, &u.Address, &u.PassHash, &u.DisplayName, &u.HomeRelayID,
+		&u.ID, &u.Handle, &u.Address, &u.Email, &u.PassHash, &u.DisplayName, &u.HomeRelayID,
 		&u.HomeRelayChangedAt, &u.Status, &u.StorageBytes, &u.LettersToday, &u.QuotaDay, &u.CreatedAt,
 	)
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -91,11 +92,11 @@ func (s *Store) GetUserByHandle(ctx context.Context, handle string) (*User, erro
 func (s *Store) GetUserByAddress(ctx context.Context, address string) (*User, error) {
 	var u User
 	err := s.pool.QueryRow(ctx, `
-		SELECT id, handle, address, pass_hash, display_name, home_relay_id,
+		SELECT id, handle, address, email, pass_hash, display_name, home_relay_id,
 		       home_relay_changed_at, status, storage_bytes, letters_today, quota_day, created_at
 		FROM users WHERE address = $1
 	`, address).Scan(
-		&u.ID, &u.Handle, &u.Address, &u.PassHash, &u.DisplayName, &u.HomeRelayID,
+		&u.ID, &u.Handle, &u.Address, &u.Email, &u.PassHash, &u.DisplayName, &u.HomeRelayID,
 		&u.HomeRelayChangedAt, &u.Status, &u.StorageBytes, &u.LettersToday, &u.QuotaDay, &u.CreatedAt,
 	)
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -103,6 +104,26 @@ func (s *Store) GetUserByAddress(ctx context.Context, address string) (*User, er
 	}
 	if err != nil {
 		return nil, fmt.Errorf("get user by address: %w", err)
+	}
+	return &u, nil
+}
+
+// GetUserByEmail fetches a user by email address (case-insensitive via citext).
+func (s *Store) GetUserByEmail(ctx context.Context, email string) (*User, error) {
+	var u User
+	err := s.pool.QueryRow(ctx, `
+		SELECT id, handle, address, email, pass_hash, display_name, home_relay_id,
+		       home_relay_changed_at, status, storage_bytes, letters_today, quota_day, created_at
+		FROM users WHERE email = $1
+	`, email).Scan(
+		&u.ID, &u.Handle, &u.Address, &u.Email, &u.PassHash, &u.DisplayName, &u.HomeRelayID,
+		&u.HomeRelayChangedAt, &u.Status, &u.StorageBytes, &u.LettersToday, &u.QuotaDay, &u.CreatedAt,
+	)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("get user by email: %w", err)
 	}
 	return &u, nil
 }
@@ -261,6 +282,8 @@ type Envelope struct {
 	ExternalTo   *string
 	BounceToken  []byte
 	LogLeaf      []byte
+	TrackingID   *string
+	TrackingShared bool
 }
 
 // CreateEnvelope inserts a new envelope.
@@ -272,12 +295,13 @@ func (s *Store) CreateEnvelope(ctx context.Context, senderID, recipientID *uuid.
 		                       size_bytes, route, total_km, queued_at, deliver_at, state, external_to, bounce_token)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 'queued', $13, $14)
 		RETURNING id, sender_id, recipient_id, direction, class, subject, ciphertext, size_bytes,
-		          route, total_km, queued_at, deliver_at, state, external_to, bounce_token, log_leaf
+		          route, total_km, queued_at, deliver_at, state, external_to, bounce_token, log_leaf,
+		          tracking_id, tracking_shared
 	`, id, senderID, recipientID, direction, class, subject, ciphertext, sizeBytes, route, totalKm,
 		queuedAt, deliverAt, externalTo, bounceToken).Scan(
 		&e.ID, &e.SenderID, &e.RecipientID, &e.Direction, &e.Class, &e.Subject, &e.Ciphertext,
 		&e.SizeBytes, &e.Route, &e.TotalKm, &e.QueuedAt, &e.DeliverAt, &e.State, &e.ExternalTo,
-		&e.BounceToken, &e.LogLeaf,
+		&e.BounceToken, &e.LogLeaf, &e.TrackingID, &e.TrackingShared,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("create envelope: %w", err)
@@ -290,12 +314,13 @@ func (s *Store) GetEnvelopeByID(ctx context.Context, id uuid.UUID) (*Envelope, e
 	var e Envelope
 	err := s.pool.QueryRow(ctx, `
 		SELECT id, sender_id, recipient_id, direction, class, subject, ciphertext, size_bytes,
-		       route, total_km, queued_at, deliver_at, state, external_to, bounce_token, log_leaf
+		       route, total_km, queued_at, deliver_at, state, external_to, bounce_token, log_leaf,
+		       tracking_id, tracking_shared
 		FROM envelopes WHERE id = $1
 	`, id).Scan(
 		&e.ID, &e.SenderID, &e.RecipientID, &e.Direction, &e.Class, &e.Subject, &e.Ciphertext,
 		&e.SizeBytes, &e.Route, &e.TotalKm, &e.QueuedAt, &e.DeliverAt, &e.State, &e.ExternalTo,
-		&e.BounceToken, &e.LogLeaf,
+		&e.BounceToken, &e.LogLeaf, &e.TrackingID, &e.TrackingShared,
 	)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, nil
@@ -310,7 +335,8 @@ func (s *Store) GetEnvelopeByID(ctx context.Context, id uuid.UUID) (*Envelope, e
 func (s *Store) ListInbox(ctx context.Context, userID uuid.UUID, limit int) ([]*Envelope, error) {
 	rows, err := s.pool.Query(ctx, `
 		SELECT id, sender_id, recipient_id, direction, class, subject, ciphertext, size_bytes,
-		       route, total_km, queued_at, deliver_at, state, external_to, bounce_token, log_leaf
+		       route, total_km, queued_at, deliver_at, state, external_to, bounce_token, log_leaf,
+		       tracking_id, tracking_shared
 		FROM envelopes
 		WHERE recipient_id = $1 AND state = 'delivered'
 		ORDER BY deliver_at DESC
@@ -327,7 +353,7 @@ func (s *Store) ListInbox(ctx context.Context, userID uuid.UUID, limit int) ([]*
 		if err := rows.Scan(
 			&e.ID, &e.SenderID, &e.RecipientID, &e.Direction, &e.Class, &e.Subject, &e.Ciphertext,
 			&e.SizeBytes, &e.Route, &e.TotalKm, &e.QueuedAt, &e.DeliverAt, &e.State, &e.ExternalTo,
-			&e.BounceToken, &e.LogLeaf,
+			&e.BounceToken, &e.LogLeaf, &e.TrackingID, &e.TrackingShared,
 		); err != nil {
 			return nil, fmt.Errorf("scan inbox: %w", err)
 		}
@@ -340,7 +366,8 @@ func (s *Store) ListInbox(ctx context.Context, userID uuid.UUID, limit int) ([]*
 func (s *Store) ListOutbox(ctx context.Context, userID uuid.UUID, limit int) ([]*Envelope, error) {
 	rows, err := s.pool.Query(ctx, `
 		SELECT id, sender_id, recipient_id, direction, class, subject, ciphertext, size_bytes,
-		       route, total_km, queued_at, deliver_at, state, external_to, bounce_token, log_leaf
+		       route, total_km, queued_at, deliver_at, state, external_to, bounce_token, log_leaf,
+		       tracking_id, tracking_shared
 		FROM envelopes
 		WHERE sender_id = $1
 		ORDER BY queued_at DESC
@@ -357,7 +384,7 @@ func (s *Store) ListOutbox(ctx context.Context, userID uuid.UUID, limit int) ([]
 		if err := rows.Scan(
 			&e.ID, &e.SenderID, &e.RecipientID, &e.Direction, &e.Class, &e.Subject, &e.Ciphertext,
 			&e.SizeBytes, &e.Route, &e.TotalKm, &e.QueuedAt, &e.DeliverAt, &e.State, &e.ExternalTo,
-			&e.BounceToken, &e.LogLeaf,
+			&e.BounceToken, &e.LogLeaf, &e.TrackingID, &e.TrackingShared,
 		); err != nil {
 			return nil, fmt.Errorf("scan outbox: %w", err)
 		}

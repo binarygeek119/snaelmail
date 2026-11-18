@@ -260,7 +260,9 @@
     <nav class="nav">
         <a href="/" class="logo">🐌 Snaelmail</a>
         <div class="user-info">
-            <span class="user-handle" id="userHandle">@user</span>
+            <span class="user-handle" id="userEmail">user@snaelmail.org</span>
+            <button class="btn" onclick="openSettings()" style="background: #e0e0e0;">⚙️ Settings</button>
+            <button class="btn" id="adminBtn" onclick="openAdmin()" style="background: #ffa500; display: none;">🔧 Admin Panel</button>
             <button class="btn btn-logout" onclick="logout()">Log Out</button>
         </div>
     </nav>
@@ -322,14 +324,49 @@
         // Check authentication
         const token = localStorage.getItem('authToken');
         const userId = localStorage.getItem('userId');
-        const handle = localStorage.getItem('handle');
+        const userEmail = localStorage.getItem('userEmail');
         
         if (!token || !userId) {
             window.location.href = '/login.html';
         }
         
-        // Display user handle
-        document.getElementById('userHandle').textContent = '@' + handle;
+        // Display user email
+        if (userEmail) {
+            document.getElementById('userEmail').textContent = userEmail;
+        } else {
+            document.getElementById('userEmail').textContent = userId + '@snaelmail.org';
+        }
+        
+        // Check if user is admin and show admin button
+        async function checkAdminStatus() {
+            try {
+                const response = await fetch('/api/users/me', {
+                    headers: {
+                        'Authorization': 'Bearer ' + token
+                    }
+                });
+                if (response.ok) {
+                    const userData = await response.json();
+                    if (userData.is_admin) {
+                        document.getElementById('adminBtn').style.display = 'inline-block';
+                    }
+                }
+            } catch (error) {
+                console.error('Error checking admin status:', error);
+            }
+        }
+        
+        checkAdminStatus();
+        
+        // Open settings modal
+        function openSettings() {
+            window.location.href = '/settings.html';
+        }
+        
+        // Open admin panel
+        function openAdmin() {
+            window.location.href = '/admin.html';
+        }
         
         // Tab switching
         const tabs = document.querySelectorAll('.tab');
@@ -371,6 +408,7 @@
                         'Authorization': 'Bearer ' + token
                     },
                     body: JSON.stringify({
+                        user_id: userId,
                         recipient: recipient,
                         subject: subject,
                         body: body
@@ -384,8 +422,18 @@
                 }
                 
                 // Success
+                const deliverAt = new Date(data.deliver_at);
+                const now = new Date();
+                const hoursUntilDelivery = Math.round((deliverAt - now) / (1000 * 60 * 60));
+                const deliveryDate = deliverAt.toLocaleDateString('en-US', { 
+                    month: 'short', 
+                    day: 'numeric',
+                    hour: 'numeric',
+                    minute: '2-digit'
+                });
+                
                 composeAlert.className = 'alert alert-success';
-                composeAlert.textContent = 'Letter sent successfully! It will arrive based on the distance to the recipient.';
+                composeAlert.innerHTML = `Letter sent successfully!<br><strong>Delivery:</strong> ${deliveryDate} (${hoursUntilDelivery} hours)`;
                 composeAlert.style.display = 'block';
                 
                 // Reset form
@@ -449,16 +497,31 @@
                 return;
             }
             
-            element.innerHTML = messages.map(msg => `
-                <div class="mail-item" onclick="viewLetter('${msg.id}')">
-                    <div class="mail-header">
-                        <span class="mail-from">${type === 'inbox' ? msg.sender_handle : msg.recipient_handle}</span>
-                        <span class="mail-date">${formatDate(msg.deliver_at || msg.queued_at)}</span>
+            element.innerHTML = messages.map(msg => {
+                const deliverAt = new Date(msg.deliver_at);
+                const now = new Date();
+                const isPast = deliverAt < now;
+                const deliveryDate = deliverAt.toLocaleDateString('en-US', { 
+                    month: 'short', 
+                    day: 'numeric'
+                });
+                const deliveryTime = deliverAt.toLocaleTimeString('en-US', { 
+                    hour: 'numeric',
+                    minute: '2-digit'
+                });
+                const deliveryLabel = isPast ? 'Delivered' : 'Arrives';
+                
+                return `
+                    <div class="mail-item" onclick="viewLetter('${msg.id}')">
+                        <div class="mail-header">
+                            <span class="mail-from">${type === 'inbox' ? msg.sender_handle : msg.recipient_handle}</span>
+                            <span class="mail-date">${deliveryLabel}: ${deliveryDate} at ${deliveryTime}</span>
+                        </div>
+                        <div class="mail-subject">${escapeHtml(msg.subject)}</div>
+                        <div class="mail-preview">${escapeHtml(msg.preview || msg.body || '').substring(0, 100)}...</div>
                     </div>
-                    <div class="mail-subject">${escapeHtml(msg.subject)}</div>
-                    <div class="mail-preview">${escapeHtml(msg.preview || msg.body || '').substring(0, 100)}...</div>
-                </div>
-            `).join('');
+                `;
+            }).join('');
         }
         
         function formatDate(dateStr) {

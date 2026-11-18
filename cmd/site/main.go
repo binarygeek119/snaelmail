@@ -124,6 +124,26 @@ func main() {
 	mux.HandleFunc("GET /api/tlog/proof/", app.handleTLogProof)
 	mux.HandleFunc("GET /api/tlog/leaf/", app.handleTLogLeaf)
 
+	// API routes - settings
+	mux.HandleFunc("GET /api/settings", app.handleGetSettings)
+	mux.HandleFunc("POST /api/settings", app.handleUpdateSettings)
+
+	// API routes - tracking
+	mux.HandleFunc("GET /api/tracking/", app.handleGetTracking)
+	mux.HandleFunc("POST /api/tracking/", app.handleShareTracking)
+
+	// API routes - notifications
+	mux.HandleFunc("GET /api/notifications", app.handleGetNotifications)
+	mux.HandleFunc("POST /api/notifications/read", app.handleMarkNotificationRead)
+
+	// Admin panel
+	mux.HandleFunc("GET /admin.html", app.handleAdminPanel)
+	mux.HandleFunc("GET /api/admin/stats", app.handleAdminStats)
+	mux.HandleFunc("GET /api/admin/users", app.handleAdminUsers)
+	mux.HandleFunc("GET /api/admin/relays", app.handleAdminRelays)
+	mux.HandleFunc("GET /api/admin/letters", app.handleAdminLetters)
+	mux.HandleFunc("GET /api/users/me", app.handleUserMe)
+
 	srv := &http.Server{
 		Addr:              *addr,
 		Handler:           mux,
