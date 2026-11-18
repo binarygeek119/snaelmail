@@ -331,29 +331,26 @@
         }
         
         // Display user email
-        if (userEmail) {
-            document.getElementById('userEmail').textContent = userEmail;
-        } else {
-            // If no email stored, fetch it from the API
-            fetch('/api/users/me', {
-                headers: {
-                    'Authorization': 'Bearer ' + token
-                }
-            })
-            .then(response => response.json())
-            .then(userData => {
-                if (userData.address) {
-                    document.getElementById('userEmail').textContent = userData.address;
-                    localStorage.setItem('userEmail', userData.address);
-                } else {
-                    document.getElementById('userEmail').textContent = userData.handle + '@snailmail.duckdns.org';
-                }
-            })
-            .catch(error => {
-                console.error('Error fetching user data:', error);
-                document.getElementById('userEmail').textContent = 'user@snailmail.duckdns.org';
-            });
-        }
+        // Always fetch from API to ensure correct email
+        fetch('/api/users/me', {
+            headers: {
+                'Authorization': 'Bearer ' + token
+            }
+        })
+        .then(response => response.json())
+        .then(userData => {
+            if (userData.address) {
+                document.getElementById('userEmail').textContent = userData.address;
+                localStorage.setItem('userEmail', userData.address);
+            } else {
+                document.getElementById('userEmail').textContent = userData.handle + '@snailmail.duckdns.org';
+                localStorage.setItem('userEmail', userData.handle + '@snailmail.duckdns.org');
+            }
+        })
+        .catch(error => {
+            console.error('Error fetching user data:', error);
+            document.getElementById('userEmail').textContent = 'user@snailmail.duckdns.org';
+        });
         
         // Check if user is admin and show admin button
         async function checkAdminStatus() {
