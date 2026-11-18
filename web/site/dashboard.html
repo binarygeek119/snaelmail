@@ -343,13 +343,13 @@
                 document.getElementById('userEmail').textContent = userData.address;
                 localStorage.setItem('userEmail', userData.address);
             } else {
-                document.getElementById('userEmail').textContent = userData.handle + '@snailmail.duckdns.org';
-                localStorage.setItem('userEmail', userData.handle + '@snailmail.duckdns.org');
+                document.getElementById('userEmail').textContent = userData.handle + '@snaelmail.org';
+                localStorage.setItem('userEmail', userData.handle + '@snaelmail.org');
             }
         })
         .catch(error => {
             console.error('Error fetching user data:', error);
-            document.getElementById('userEmail').textContent = 'user@snailmail.duckdns.org';
+            document.getElementById('userEmail').textContent = 'user@snaelmail.org';
         });
         
         // Check if user is admin and show admin button

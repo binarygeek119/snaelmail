@@ -1,4 +1,4 @@
-mail_domain = "snailmail.duckdns.org"
+mail_domain = "snaelmail.org"
 site_key    = "/etc/snailmail/site.key"
 
 [speed_km_per_day]
