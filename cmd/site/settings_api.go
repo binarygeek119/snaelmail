@@ -3,27 +3,20 @@ package main
 import (
 	"encoding/json"
 	"net/http"
-	"strings"
 
 	"snailmail/internal/store"
-
-	"github.com/google/uuid"
 )
 
 // handleGetSettings handles GET /api/settings
 func (app *appState) handleGetSettings(w http.ResponseWriter, r *http.Request) {
-	// Get user ID from Authorization header (simple auth for now)
-	userIDStr := r.Header.Get("Authorization")
-	userIDStr = strings.TrimPrefix(userIDStr, "Bearer ")
-	
-	userID, err := uuid.Parse(userIDStr)
-	if err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid user_id"})
+	// Validate session
+	_, user := app.validateSession(w, r)
+	if user == nil {
 		return
 	}
 
 	// Get user settings
-	settings, err := app.store.GetUserSettings(r.Context(), userID)
+	settings, err := app.store.GetUserSettings(r.Context(), user.ID)
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to get settings"})
 		return
@@ -34,13 +27,9 @@ func (app *appState) handleGetSettings(w http.ResponseWriter, r *http.Request) {
 
 // handleUpdateSettings handles PUT /api/settings
 func (app *appState) handleUpdateSettings(w http.ResponseWriter, r *http.Request) {
-	// Get user ID from Authorization header (simple auth for now)
-	userIDStr := r.Header.Get("Authorization")
-	userIDStr = strings.TrimPrefix(userIDStr, "Bearer ")
-	
-	userID, err := uuid.Parse(userIDStr)
-	if err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid user_id"})
+	// Validate session
+	_, user := app.validateSession(w, r)
+	if user == nil {
 		return
 	}
 
@@ -52,7 +41,7 @@ func (app *appState) handleUpdateSettings(w http.ResponseWriter, r *http.Request
 	}
 
 	// Set user ID from authenticated user
-	req.UserID = userID
+	req.UserID = user.ID
 
 	// Update settings
 	if err := app.store.UpdateUserSettings(r.Context(), &req); err != nil {
@@ -61,7 +50,7 @@ func (app *appState) handleUpdateSettings(w http.ResponseWriter, r *http.Request
 	}
 
 	// Return updated settings
-	settings, err := app.store.GetUserSettings(r.Context(), userID)
+	settings, err := app.store.GetUserSettings(r.Context(), user.ID)
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to get updated settings"})
 		return

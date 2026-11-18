@@ -72,7 +72,21 @@ func (app *appState) handleAdminUsers(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, map[string]any{"users": users})
+	// Filter out sensitive fields
+	safeUsers := make([]map[string]any, len(users))
+	for i, u := range users {
+		safeUsers[i] = map[string]any{
+			"id":           u.ID,
+			"handle":       u.Handle,
+			"address":      u.Address,
+			"display_name": u.DisplayName,
+			"status":       u.Status,
+			"is_admin":     u.IsAdmin,
+			"created_at":   u.CreatedAt,
+		}
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{"users": safeUsers})
 }
 
 // handleAdminRelays returns all relays
