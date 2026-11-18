@@ -161,7 +161,6 @@ func main() {
 	mux.HandleFunc("POST /api/notifications/read", app.handleMarkNotificationRead)
 
 	// Admin panel
-	mux.HandleFunc("GET /admin.html", app.handleAdminPanel)
 	mux.HandleFunc("GET /api/admin/stats", app.handleAdminStats)
 	mux.HandleFunc("GET /api/admin/users", app.handleAdminUsers)
 	mux.HandleFunc("GET /api/admin/relays", app.handleAdminRelays)
