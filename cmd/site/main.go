@@ -142,7 +142,23 @@ func main() {
 	mux.HandleFunc("GET /api/admin/users", app.handleAdminUsers)
 	mux.HandleFunc("GET /api/admin/relays", app.handleAdminRelays)
 	mux.HandleFunc("GET /api/admin/letters", app.handleAdminLetters)
+	mux.HandleFunc("GET /api/admin/actions", app.handleAdminActions)
 	mux.HandleFunc("GET /api/users/me", app.handleUserMe)
+	
+	// Admin user management
+	mux.HandleFunc("POST /api/admin/users/{id}/suspend", app.handleAdminSuspendUser)
+	mux.HandleFunc("POST /api/admin/users/{id}/unsuspend", app.handleAdminUnsuspendUser)
+	mux.HandleFunc("DELETE /api/admin/users/{id}", app.handleAdminDeleteUser)
+	
+	// Admin relay management
+	mux.HandleFunc("POST /api/admin/relays/{id}/suspend", app.handleAdminSuspendRelay)
+	mux.HandleFunc("POST /api/admin/relays/{id}/unsuspend", app.handleAdminUnsuspendRelay)
+	mux.HandleFunc("DELETE /api/admin/relays/{id}", app.handleAdminDeleteRelay)
+
+	// Start background workers
+	app.startNotificationWorker()
+	app.startDeliveryWorker()
+	log.Println("snailmail/site: background workers started")
 
 	srv := &http.Server{
 		Addr:              *addr,

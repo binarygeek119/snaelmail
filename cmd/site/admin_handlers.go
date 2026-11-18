@@ -39,58 +39,6 @@ func (app *appState) handleAdminPanel(w http.ResponseWriter, r *http.Request) {
 	http.ServeFile(w, r, "web/site/admin.html")
 }
 
-// handleAdminStats returns admin statistics
-func (app *appState) handleAdminStats(w http.ResponseWriter, r *http.Request) {
-	// Check if user is admin
-	userIDStr := r.Header.Get("Authorization")
-	userIDStr = strings.TrimPrefix(userIDStr, "Bearer ")
-	userID, err := uuid.Parse(userIDStr)
-	if err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid user_id"})
-		return
-	}
-
-	user, err := app.store.GetUserByID(r.Context(), userID)
-	if err != nil || user == nil || user.Handle != "admin" {
-		writeJSON(w, http.StatusForbidden, map[string]string{"error": "admin access required"})
-		return
-	}
-
-	// Get statistics
-	var totalUsers, activeUsers, totalRelays, lettersToday int
-
-	err = app.store.Pool().QueryRow(r.Context(), "SELECT COUNT(*) FROM users").Scan(&totalUsers)
-	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to get stats"})
-		return
-	}
-
-	err = app.store.Pool().QueryRow(r.Context(), "SELECT COUNT(*) FROM users WHERE status = 'verified'").Scan(&activeUsers)
-	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to get stats"})
-		return
-	}
-
-	err = app.store.Pool().QueryRow(r.Context(), "SELECT COUNT(*) FROM relays WHERE status = 'active'").Scan(&totalRelays)
-	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to get stats"})
-		return
-	}
-
-	err = app.store.Pool().QueryRow(r.Context(), "SELECT COUNT(*) FROM envelopes WHERE queued_at >= CURRENT_DATE").Scan(&lettersToday)
-	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to get stats"})
-		return
-	}
-
-	writeJSON(w, http.StatusOK, map[string]any{
-		"total_users":   totalUsers,
-		"active_users":  activeUsers,
-		"total_relays":  totalRelays,
-		"letters_today": lettersToday,
-	})
-}
-
 // handleAdminUsers returns all users
 func (app *appState) handleAdminUsers(w http.ResponseWriter, r *http.Request) {
 	// Check if user is admin

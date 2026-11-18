@@ -19,6 +19,15 @@ type Config struct {
 	Customs       Customs       `toml:"customs"`
 	Stamp         Stamp         `toml:"stamp"`
 	Limits        Limits        `toml:"limits"`
+	
+	// SMTP configuration for sending emails
+	SMTPUsername string `toml:"smtp_username"`
+	SMTPPassword string `toml:"smtp_password"`
+	
+	// IMAP server configuration
+	IMAPPort     string `toml:"imap_port"`
+	IMAPCertFile string `toml:"imap_cert_file"`
+	IMAPKeyFile  string `toml:"imap_key_file"`
 }
 
 type SpeedKmPerDay struct {

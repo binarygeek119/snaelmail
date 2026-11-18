@@ -34,3 +34,12 @@ positions = [[18,16],[18,120],[18,224],[18,300],[120,16],[120,120]]
 [limits]
 max_surface_days = 45
 max_air_days     = 21
+
+# SMTP configuration for sending notification emails
+smtp_username = ""
+smtp_password = ""
+
+# IMAP server configuration
+imap_port = "993"
+imap_cert_file = "/etc/snailmail/imap.crt"
+imap_key_file = "/etc/snailmail/imap.key"
