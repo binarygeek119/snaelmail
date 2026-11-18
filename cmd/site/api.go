@@ -182,14 +182,28 @@ func (app *appState) apiSession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// In a real system, store the token in a sessions table
-	// For now, just return it
-	writeJSON(w, http.StatusOK, map[string]any{
-		"user_id": user.ID,
-		"handle":  user.Handle,
-		"address": user.Address,
-		"token":   token,
-	})
+	// Store session in database (expires in 24 hours)
+	expiresAt := time.Now().Add(24 * time.Hour)
+	if err := app.store.CreateSession(r.Context(), user.ID, token, expiresAt); err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to create session"})
+		return
+	}
+
+	// Return token to client
+	response := map[string]any{
+		"user_id":  user.ID,
+		"handle":   user.Handle,
+		"address":  user.Address,
+		"token":    token,
+		"is_admin": user.IsAdmin,
+	}
+
+	// Include email if it exists
+	if user.Email != nil {
+		response["email"] = *user.Email
+	}
+
+	writeJSON(w, http.StatusOK, response)
 }
 
 // apiLetters handles POST /api/letters (compose)
