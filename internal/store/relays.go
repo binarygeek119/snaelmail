@@ -34,6 +34,7 @@ type Relay struct {
 	Status       string
 	Official     bool
 	Paused       bool
+	Central      bool
 	OpenedAt     *time.Time
 	RetiredAt    *time.Time
 	LastTXTCheck *time.Time
@@ -49,11 +50,11 @@ func (s *Store) CreateRelay(ctx context.Context, hostname string, pubkey, keyFpr
 		INSERT INTO relays (id, hostname, pubkey, key_fpr, city, region, cc, lat, lon, tz, stamp_svg, stamp_png, stamp_sha256, status)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, 'pending')
 		RETURNING id, hostname, pubkey, key_fpr, city, region, cc, lat, lon, tz, stamp_svg, stamp_png, stamp_sha256,
-		          plate_json, plate_sig, status, official, paused, opened_at, retired_at, last_txt_check, letters_passed, complaints_30d
+		          plate_json, plate_sig, status, official, paused, central, opened_at, retired_at, last_txt_check, letters_passed, complaints_30d
 	`, id, hostname, pubkey, keyFpr, city, region, cc, lat, lon, tz, stampSVG, stampPNG, stampSHA256).Scan(
 		&r.ID, &r.Hostname, &r.Pubkey, &r.KeyFpr, &r.City, &r.Region, &r.CC, &r.Lat, &r.Lon, &r.TZ,
 		&r.StampSVG, &r.StampPNG, &r.StampSHA256, &r.PlateJSON, &r.PlateSig, &r.Status, &r.Official,
-		&r.Paused, &r.OpenedAt, &r.RetiredAt, &r.LastTXTCheck, &r.LettersPassed, &r.Complaints30d,
+		&r.Paused, &r.Central, &r.OpenedAt, &r.RetiredAt, &r.LastTXTCheck, &r.LettersPassed, &r.Complaints30d,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("create relay: %w", err)
@@ -66,12 +67,12 @@ func (s *Store) GetRelayByID(ctx context.Context, id uuid.UUID) (*Relay, error) 
 	var r Relay
 	err := s.pool.QueryRow(ctx, `
 		SELECT id, hostname, pubkey, key_fpr, city, region, cc, lat, lon, tz, stamp_svg, stamp_png, stamp_sha256,
-		       plate_json, plate_sig, status, official, paused, opened_at, retired_at, last_txt_check, letters_passed, complaints_30d
+		       plate_json, plate_sig, status, official, paused, central, opened_at, retired_at, last_txt_check, letters_passed, complaints_30d
 		FROM relays WHERE id = $1
 	`, id).Scan(
 		&r.ID, &r.Hostname, &r.Pubkey, &r.KeyFpr, &r.City, &r.Region, &r.CC, &r.Lat, &r.Lon, &r.TZ,
 		&r.StampSVG, &r.StampPNG, &r.StampSHA256, &r.PlateJSON, &r.PlateSig, &r.Status, &r.Official,
-		&r.Paused, &r.OpenedAt, &r.RetiredAt, &r.LastTXTCheck, &r.LettersPassed, &r.Complaints30d,
+		&r.Paused, &r.Central, &r.OpenedAt, &r.RetiredAt, &r.LastTXTCheck, &r.LettersPassed, &r.Complaints30d,
 	)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, nil
@@ -87,12 +88,12 @@ func (s *Store) GetRelayByHostname(ctx context.Context, hostname string) (*Relay
 	var r Relay
 	err := s.pool.QueryRow(ctx, `
 		SELECT id, hostname, pubkey, key_fpr, city, region, cc, lat, lon, tz, stamp_svg, stamp_png, stamp_sha256,
-		       plate_json, plate_sig, status, official, paused, opened_at, retired_at, last_txt_check, letters_passed, complaints_30d
+		       plate_json, plate_sig, status, official, paused, central, opened_at, retired_at, last_txt_check, letters_passed, complaints_30d
 		FROM relays WHERE hostname = $1
 	`, hostname).Scan(
 		&r.ID, &r.Hostname, &r.Pubkey, &r.KeyFpr, &r.City, &r.Region, &r.CC, &r.Lat, &r.Lon, &r.TZ,
 		&r.StampSVG, &r.StampPNG, &r.StampSHA256, &r.PlateJSON, &r.PlateSig, &r.Status, &r.Official,
-		&r.Paused, &r.OpenedAt, &r.RetiredAt, &r.LastTXTCheck, &r.LettersPassed, &r.Complaints30d,
+		&r.Paused, &r.Central, &r.OpenedAt, &r.RetiredAt, &r.LastTXTCheck, &r.LettersPassed, &r.Complaints30d,
 	)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, nil
@@ -208,9 +209,9 @@ func (s *Store) IncrementLettersPassed(ctx context.Context, id uuid.UUID) error 
 func (s *Store) ListActiveRelays(ctx context.Context) ([]*Relay, error) {
 	rows, err := s.pool.Query(ctx, `
 		SELECT id, hostname, pubkey, key_fpr, city, region, cc, lat, lon, tz, stamp_svg, stamp_png, stamp_sha256,
-		       plate_json, plate_sig, status, official, paused, opened_at, retired_at, last_txt_check, letters_passed, complaints_30d
+		       plate_json, plate_sig, status, official, paused, central, opened_at, retired_at, last_txt_check, letters_passed, complaints_30d
 		FROM relays
-		WHERE status = 'active' AND paused = false AND plate_json IS NOT NULL
+		WHERE status = 'active' AND paused = false AND (plate_json IS NOT NULL OR central = true)
 		ORDER BY letters_passed DESC
 	`)
 	if err != nil {
@@ -224,7 +225,7 @@ func (s *Store) ListActiveRelays(ctx context.Context) ([]*Relay, error) {
 		if err := rows.Scan(
 			&r.ID, &r.Hostname, &r.Pubkey, &r.KeyFpr, &r.City, &r.Region, &r.CC, &r.Lat, &r.Lon, &r.TZ,
 			&r.StampSVG, &r.StampPNG, &r.StampSHA256, &r.PlateJSON, &r.PlateSig, &r.Status, &r.Official,
-			&r.Paused, &r.OpenedAt, &r.RetiredAt, &r.LastTXTCheck, &r.LettersPassed, &r.Complaints30d,
+			&r.Paused, &r.Central, &r.OpenedAt, &r.RetiredAt, &r.LastTXTCheck, &r.LettersPassed, &r.Complaints30d,
 		); err != nil {
 			return nil, fmt.Errorf("scan relay: %w", err)
 		}

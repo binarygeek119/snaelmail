@@ -245,6 +245,7 @@
             <div class="tabs">
                 <button class="tab active" data-tab="users">Users</button>
                 <button class="tab" data-tab="relays">Post Offices</button>
+                <button class="tab" data-tab="central">Central Post Office</button>
                 <button class="tab" data-tab="letters">Letters</button>
             </div>
             
@@ -279,6 +280,17 @@
                     </thead>
                     <tbody id="relaysBody"></tbody>
                 </table>
+            </div>
+            
+            <div id="central-tab" class="tab-content">
+                <div id="centralLoading" class="loading">Loading central post office...</div>
+                <div id="centralContent" style="display: none;">
+                    <div class="section">
+                        <h3>Central Post Office Information</h3>
+                        <div id="centralInfo"></div>
+                        <button class="btn" onclick="editCentralPage()">Edit Public Page</button>
+                    </div>
+                </div>
             </div>
             
             <div id="letters-tab" class="tab-content">
@@ -499,6 +511,46 @@
             alert('View letter: ' + id);
         }
         
+        // Load central post office
+        async function loadCentral() {
+            try {
+                // First, get the central post office ID
+                const response = await fetch('/api/relays/search?city=snaelmail', {
+                    headers: {
+                        'Authorization': 'Bearer ' + token
+                    }
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.relays && data.relays.length > 0) {
+                        const centralRelay = data.relays.find(r => r.central === true);
+                        if (centralRelay) {
+                            const infoDiv = document.getElementById('centralInfo');
+                            infoDiv.innerHTML = `
+                                <p><strong>Hostname:</strong> ${centralRelay.hostname}</p>
+                                <p><strong>City:</strong> ${centralRelay.city}</p>
+                                <p><strong>Region:</strong> ${centralRelay.region}</p>
+                                <p><strong>Country:</strong> ${centralRelay.cc}</p>
+                                <p><strong>Status:</strong> ${centralRelay.status}</p>
+                                <p><strong>Letters Handled:</strong> ${centralRelay.letters_passed}</p>
+                                <p><strong>Established:</strong> ${new Date(centralRelay.opened_at).toLocaleDateString()}</p>
+                            `;
+                            document.getElementById('centralLoading').style.display = 'none';
+                            document.getElementById('centralContent').style.display = 'block';
+                        }
+                    }
+                }
+            } catch (error) {
+                console.error('Error loading central post office:', error);
+            }
+        }
+        
+        function editCentralPage() {
+            alert('Central post office page editor coming soon!');
+            // TODO: Implement page editor for central post office
+        }
+        
         // Initialize
         (async () => {
             const isAdmin = await checkAdmin();
@@ -506,6 +558,7 @@
                 loadUsers();
                 loadRelays();
                 loadLetters();
+                loadCentral();
             }
         })();
     </script>

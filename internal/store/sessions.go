@@ -104,7 +104,7 @@ func (s *Store) GetAllRelays(ctx context.Context) ([]Relay, error) {
 	rows, err := s.pool.Query(ctx, `
 		SELECT id, hostname, pubkey, key_fpr, city, region, cc, lat, lon, tz,
 		       stamp_svg, stamp_png, stamp_sha256, plate_json, plate_sig,
-		       status, official, paused, opened_at, retired_at, last_txt_check,
+		       status, official, paused, central, opened_at, retired_at, last_txt_check,
 		       letters_passed, complaints_30d
 		FROM relays
 		ORDER BY letters_passed DESC
@@ -120,7 +120,7 @@ func (s *Store) GetAllRelays(ctx context.Context) ([]Relay, error) {
 		err := rows.Scan(
 			&r.ID, &r.Hostname, &r.Pubkey, &r.KeyFpr, &r.City, &r.Region, &r.CC, &r.Lat, &r.Lon, &r.TZ,
 			&r.StampSVG, &r.StampPNG, &r.StampSHA256, &r.PlateJSON, &r.PlateSig,
-			&r.Status, &r.Official, &r.Paused, &r.OpenedAt, &r.RetiredAt, &r.LastTXTCheck,
+			&r.Status, &r.Official, &r.Paused, &r.Central, &r.OpenedAt, &r.RetiredAt, &r.LastTXTCheck,
 			&r.LettersPassed, &r.Complaints30d,
 		)
 		if err != nil {

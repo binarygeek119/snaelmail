@@ -398,6 +398,7 @@ func (app *appState) apiOpenPostOffices(w http.ResponseWriter, r *http.Request) 
 			"city":             relay.City,
 			"region":           relay.Region,
 			"cc":               relay.CC,
+			"central":          relay.Central,
 			"lat":              relay.Lat,
 			"lon":              relay.Lon,
 			"opened_at":        relay.OpenedAt,
