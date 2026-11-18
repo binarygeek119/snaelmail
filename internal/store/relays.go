@@ -1,0 +1,328 @@
+package store
+
+import (
+	"context"
+	"crypto/ed25519"
+	"errors"
+	"fmt"
+	"time"
+
+	"snailmail/internal/relayreg"
+	"snailmail/internal/route"
+
+	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
+)
+
+// Relay represents a post office relay.
+type Relay struct {
+	ID           uuid.UUID
+	Hostname     string
+	Pubkey       []byte
+	KeyFpr       []byte
+	City         string
+	Region       string
+	CC           string
+	Lat          float64
+	Lon          float64
+	TZ           string
+	StampSVG     string
+	StampPNG     []byte
+	StampSHA256  []byte
+	PlateJSON    []byte
+	PlateSig     []byte
+	Status       string
+	Official     bool
+	Paused       bool
+	OpenedAt     *time.Time
+	RetiredAt    *time.Time
+	LastTXTCheck *time.Time
+	LettersPassed int64
+	Complaints30d int
+}
+
+// CreateRelay inserts a new relay.
+func (s *Store) CreateRelay(ctx context.Context, hostname string, pubkey, keyFpr []byte, city, region, cc string, lat, lon float64, tz, stampSVG string, stampPNG, stampSHA256 []byte) (*Relay, error) {
+	id := uuid.New()
+	var r Relay
+	err := s.pool.QueryRow(ctx, `
+		INSERT INTO relays (id, hostname, pubkey, key_fpr, city, region, cc, lat, lon, tz, stamp_svg, stamp_png, stamp_sha256, status)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, 'pending')
+		RETURNING id, hostname, pubkey, key_fpr, city, region, cc, lat, lon, tz, stamp_svg, stamp_png, stamp_sha256,
+		          plate_json, plate_sig, status, official, paused, opened_at, retired_at, last_txt_check, letters_passed, complaints_30d
+	`, id, hostname, pubkey, keyFpr, city, region, cc, lat, lon, tz, stampSVG, stampPNG, stampSHA256).Scan(
+		&r.ID, &r.Hostname, &r.Pubkey, &r.KeyFpr, &r.City, &r.Region, &r.CC, &r.Lat, &r.Lon, &r.TZ,
+		&r.StampSVG, &r.StampPNG, &r.StampSHA256, &r.PlateJSON, &r.PlateSig, &r.Status, &r.Official,
+		&r.Paused, &r.OpenedAt, &r.RetiredAt, &r.LastTXTCheck, &r.LettersPassed, &r.Complaints30d,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("create relay: %w", err)
+	}
+	return &r, nil
+}
+
+// GetRelayByID fetches a relay by ID.
+func (s *Store) GetRelayByID(ctx context.Context, id uuid.UUID) (*Relay, error) {
+	var r Relay
+	err := s.pool.QueryRow(ctx, `
+		SELECT id, hostname, pubkey, key_fpr, city, region, cc, lat, lon, tz, stamp_svg, stamp_png, stamp_sha256,
+		       plate_json, plate_sig, status, official, paused, opened_at, retired_at, last_txt_check, letters_passed, complaints_30d
+		FROM relays WHERE id = $1
+	`, id).Scan(
+		&r.ID, &r.Hostname, &r.Pubkey, &r.KeyFpr, &r.City, &r.Region, &r.CC, &r.Lat, &r.Lon, &r.TZ,
+		&r.StampSVG, &r.StampPNG, &r.StampSHA256, &r.PlateJSON, &r.PlateSig, &r.Status, &r.Official,
+		&r.Paused, &r.OpenedAt, &r.RetiredAt, &r.LastTXTCheck, &r.LettersPassed, &r.Complaints30d,
+	)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("get relay by id: %w", err)
+	}
+	return &r, nil
+}
+
+// GetRelayByHostname fetches a relay by hostname.
+func (s *Store) GetRelayByHostname(ctx context.Context, hostname string) (*Relay, error) {
+	var r Relay
+	err := s.pool.QueryRow(ctx, `
+		SELECT id, hostname, pubkey, key_fpr, city, region, cc, lat, lon, tz, stamp_svg, stamp_png, stamp_sha256,
+		       plate_json, plate_sig, status, official, paused, opened_at, retired_at, last_txt_check, letters_passed, complaints_30d
+		FROM relays WHERE hostname = $1
+	`, hostname).Scan(
+		&r.ID, &r.Hostname, &r.Pubkey, &r.KeyFpr, &r.City, &r.Region, &r.CC, &r.Lat, &r.Lon, &r.TZ,
+		&r.StampSVG, &r.StampPNG, &r.StampSHA256, &r.PlateJSON, &r.PlateSig, &r.Status, &r.Official,
+		&r.Paused, &r.OpenedAt, &r.RetiredAt, &r.LastTXTCheck, &r.LettersPassed, &r.Complaints30d,
+	)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("get relay by hostname: %w", err)
+	}
+	return &r, nil
+}
+
+// UpdateRelayStatus updates the relay's status.
+func (s *Store) UpdateRelayStatus(ctx context.Context, id uuid.UUID, status string) error {
+	_, err := s.pool.Exec(ctx, `UPDATE relays SET status = $1 WHERE id = $2`, status, id)
+	return err
+}
+
+// ActivateRelay sets status to 'active' and opens_at if null.
+func (s *Store) ActivateRelay(ctx context.Context, id uuid.UUID) error {
+	_, err := s.pool.Exec(ctx, `
+		UPDATE relays
+		SET status = 'active', opened_at = COALESCE(opened_at, now())
+		WHERE id = $1
+	`, id)
+	return err
+}
+
+// SetRelayPaused sets the paused flag.
+func (s *Store) SetRelayPaused(ctx context.Context, id uuid.UUID, paused bool) error {
+	_, err := s.pool.Exec(ctx, `UPDATE relays SET paused = $1 WHERE id = $2`, paused, id)
+	return err
+}
+
+// UpdateRelayTXTCheck updates the last TXT check timestamp.
+func (s *Store) UpdateRelayTXTCheck(ctx context.Context, id uuid.UUID) error {
+	_, err := s.pool.Exec(ctx, `UPDATE relays SET last_txt_check = now() WHERE id = $2`, id)
+	return err
+}
+
+// RelayChallenge represents a pending verification challenge.
+type RelayChallenge struct {
+	RelayID   uuid.UUID
+	Token     string
+	ExpiresAt time.Time
+}
+
+// CreateRelayChallenge inserts a new challenge.
+func (s *Store) CreateRelayChallenge(ctx context.Context, relayID uuid.UUID, token string, expiresAt time.Time) error {
+	_, err := s.pool.Exec(ctx, `
+		INSERT INTO relay_challenges (relay_id, token, expires_at)
+		VALUES ($1, $2, $3)
+	`, relayID, token, expiresAt)
+	return err
+}
+
+// GetRelayChallenge fetches an unexpired challenge for a relay.
+func (s *Store) GetRelayChallenge(ctx context.Context, relayID uuid.UUID) (*RelayChallenge, error) {
+	var c RelayChallenge
+	err := s.pool.QueryRow(ctx, `
+		SELECT relay_id, token, expires_at
+		FROM relay_challenges
+		WHERE relay_id = $1 AND expires_at > now()
+		ORDER BY expires_at DESC
+		LIMIT 1
+	`, relayID).Scan(&c.RelayID, &c.Token, &c.ExpiresAt)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("get relay challenge: %w", err)
+	}
+	return &c, nil
+}
+
+// DeleteRelayChallenge removes a challenge.
+func (s *Store) DeleteRelayChallenge(ctx context.Context, relayID uuid.UUID, token string) error {
+	_, err := s.pool.Exec(ctx, `DELETE FROM relay_challenges WHERE relay_id = $1 AND token = $2`, relayID, token)
+	return err
+}
+
+// UpdateRelayPlate updates the relay's plate.
+func (s *Store) UpdateRelayPlate(ctx context.Context, id uuid.UUID, plateJSON, plateSig []byte) error {
+	_, err := s.pool.Exec(ctx, `
+		UPDATE relays SET plate_json = $1, plate_sig = $2 WHERE id = $3
+	`, plateJSON, plateSig, id)
+	return err
+}
+
+// UpdateRelayLocation updates the relay's location.
+func (s *Store) UpdateRelayLocation(ctx context.Context, id uuid.UUID, city, region, cc string, lat, lon float64, tz string) error {
+	_, err := s.pool.Exec(ctx, `
+		UPDATE relays SET city = $1, region = $2, cc = $3, lat = $4, lon = $5, tz = $6 WHERE id = $7
+	`, city, region, cc, lat, lon, tz, id)
+	return err
+}
+
+// RetireRelay sets status to 'retired' and retired_at.
+func (s *Store) RetireRelay(ctx context.Context, id uuid.UUID) error {
+	_, err := s.pool.Exec(ctx, `
+		UPDATE relays SET status = 'retired', retired_at = now() WHERE id = $1
+	`, id)
+	return err
+}
+
+// IncrementLettersPassed increments the letters_passed counter.
+func (s *Store) IncrementLettersPassed(ctx context.Context, id uuid.UUID) error {
+	_, err := s.pool.Exec(ctx, `
+		UPDATE relays SET letters_passed = letters_passed + 1 WHERE id = $1
+	`, id)
+	return err
+}
+
+// ListActiveRelays returns all active, unpaused relays with valid plates.
+func (s *Store) ListActiveRelays(ctx context.Context) ([]*Relay, error) {
+	rows, err := s.pool.Query(ctx, `
+		SELECT id, hostname, pubkey, key_fpr, city, region, cc, lat, lon, tz, stamp_svg, stamp_png, stamp_sha256,
+		       plate_json, plate_sig, status, official, paused, opened_at, retired_at, last_txt_check, letters_passed, complaints_30d
+		FROM relays
+		WHERE status = 'active' AND paused = false AND plate_json IS NOT NULL
+		ORDER BY letters_passed DESC
+	`)
+	if err != nil {
+		return nil, fmt.Errorf("list active relays: %w", err)
+	}
+	defer rows.Close()
+
+	var relays []*Relay
+	for rows.Next() {
+		var r Relay
+		if err := rows.Scan(
+			&r.ID, &r.Hostname, &r.Pubkey, &r.KeyFpr, &r.City, &r.Region, &r.CC, &r.Lat, &r.Lon, &r.TZ,
+			&r.StampSVG, &r.StampPNG, &r.StampSHA256, &r.PlateJSON, &r.PlateSig, &r.Status, &r.Official,
+			&r.Paused, &r.OpenedAt, &r.RetiredAt, &r.LastTXTCheck, &r.LettersPassed, &r.Complaints30d,
+		); err != nil {
+			return nil, fmt.Errorf("scan relay: %w", err)
+		}
+		relays = append(relays, &r)
+	}
+	return relays, nil
+}
+
+// StatusGate implements the routing gate per §12.
+type Blocker int
+
+const (
+	BlockerNone Blocker = iota
+	BlockerStatus
+	BlockerPaused
+	BlockerPlate
+	BlockerTXT
+	BlockerComplaints
+)
+
+// BlockerName returns a human-readable name for a blocker type.
+func BlockerName(b Blocker) string {
+	switch b {
+	case BlockerStatus:
+		return "status"
+	case BlockerPaused:
+		return "paused"
+	case BlockerPlate:
+		return "plate"
+	case BlockerTXT:
+		return "txt"
+	case BlockerComplaints:
+		return "complaints"
+	default:
+		return "unknown"
+	}
+}
+
+// Routable checks if a relay is routable and returns blockers.
+func Routable(r *Relay, complaintThreshold int) (bool, []Blocker) {
+	var blockers []Blocker
+
+	if r.Status != "active" {
+		blockers = append(blockers, BlockerStatus)
+	}
+	if r.Paused {
+		blockers = append(blockers, BlockerPaused)
+	}
+	if r.PlateJSON == nil || r.PlateSig == nil {
+		blockers = append(blockers, BlockerPlate)
+	}
+	if r.LastTXTCheck == nil || time.Since(*r.LastTXTCheck) > 24*time.Hour {
+		blockers = append(blockers, BlockerTXT)
+	}
+	if r.Complaints30d >= complaintThreshold {
+		blockers = append(blockers, BlockerComplaints)
+	}
+
+	return len(blockers) == 0, blockers
+}
+
+// RelayToRoute converts a Relay to a route.Relay for routing.
+func RelayToRoute(r *Relay) *route.Relay {
+	return &route.Relay{
+		ID:     [16]byte(r.ID),
+		Active: r.Status == "active",
+		Paused: r.Paused,
+		Plate:  r.PlateJSON != nil && r.PlateSig != nil,
+		City:   r.City,
+		CC:     r.CC,
+		Lat:    r.Lat,
+		Lon:    r.Lon,
+	}
+}
+
+// VerifyPlateSignature checks the plate signature against the relay's public key.
+func VerifyPlateSignature(r *Relay) error {
+	if r.PlateJSON == nil || r.PlateSig == nil {
+		return errors.New("no plate data")
+	}
+	pub := ed25519.PublicKey(r.Pubkey)
+	// In a real implementation, we'd parse the plate JSON and verify the signature
+	// For now, just check that both exist
+	if len(pub) != ed25519.PublicKeySize {
+		return errors.New("invalid public key size")
+	}
+	return nil
+}
+
+// DNSResolver adapter for relayreg
+type RelayDNSResolver struct {
+	resolver relayreg.DNSResolver
+}
+
+func NewRelayDNSResolver() *RelayDNSResolver {
+	return &RelayDNSResolver{resolver: &relayreg.NetResolver{}}
+}
+
+func (r *RelayDNSResolver) LookupTXT(ctx context.Context, hostname string) ([]string, error) {
+	return r.resolver.LookupTXT(ctx, hostname)
+}

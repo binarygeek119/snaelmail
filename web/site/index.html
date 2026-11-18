@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Snaelmail - Email that takes its time</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .nav {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .logo {
+            font-size: 1.8rem;
+            font-weight: bold;
+            color: #667eea;
+            text-decoration: none;
+        }
+        
+        .nav-buttons {
+            display: flex;
+            gap: 1rem;
+        }
+        
+        .btn {
+            padding: 0.6rem 1.5rem;
+            border-radius: 25px;
+            text-decoration: none;
+            font-weight: 500;
+            transition: all 0.3s;
+            border: none;
+            cursor: pointer;
+            font-size: 1rem;
+        }
+        
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+        
+        .btn-secondary {
+            background: white;
+            color: #667eea;
+            border: 2px solid #667eea;
+        }
+        
+        .btn-secondary:hover {
+            background: #667eea;
+            color: white;
+        }
+        
+        .hero {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            color: white;
+            padding: 2rem;
+        }
+        
+        .hero h1 {
+            font-size: 3.5rem;
+            margin-bottom: 1rem;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+        
+        .hero p {
+            font-size: 1.3rem;
+            margin-bottom: 2rem;
+            opacity: 0.95;
+        }
+        
+        .features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 2rem;
+            max-width: 1200px;
+            margin: 3rem auto;
+            padding: 0 2rem;
+        }
+        
+        .feature-card {
+            background: white;
+            padding: 2rem;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            transition: transform 0.3s;
+        }
+        
+        .feature-card:hover {
+            transform: translateY(-10px);
+        }
+        
+        .feature-card h3 {
+            color: #667eea;
+            margin-bottom: 1rem;
+            font-size: 1.5rem;
+        }
+        
+        .feature-card p {
+            color: #555;
+            line-height: 1.6;
+        }
+        
+        .cta {
+            background: rgba(255,255,255,0.1);
+            padding: 3rem 2rem;
+            text-align: center;
+            color: white;
+        }
+        
+        .cta h2 {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+        }
+        
+        .footer {
+            background: rgba(0,0,0,0.2);
+            color: white;
+            text-align: center;
+            padding: 2rem;
+        }
+        
+        @media (max-width: 768px) {
+            .hero h1 {
+                font-size: 2.5rem;
+            }
+            
+            .hero p {
+                font-size: 1.1rem;
+            }
+            
+            .nav {
+                padding: 1rem;
+            }
+            
+            .logo {
+                font-size: 1.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <nav class="nav">
+        <a href="/" class="logo">🐌 Snaelmail</a>
+        <div class="nav-buttons">
+            <a href="/login.html" class="btn btn-secondary">Log In</a>
+            <a href="/signup.html" class="btn btn-primary">Sign Up</a>
+        </div>
+    </nav>
+    
+    <div class="hero">
+        <h1>Email that takes its time</h1>
+        <p>Experience the art of slow communication. Letters delivered with care, not haste.</p>
+        <div>
+            <a href="/signup.html" class="btn btn-primary" style="font-size: 1.2rem; padding: 1rem 2rem;">Get Started</a>
+        </div>
+    </div>
+    
+    <div class="features">
+        <div class="feature-card">
+            <h3>📮 Virtual Post Offices</h3>
+            <p>Every letter passes through actual post offices around the world, collecting authentic postmarks along the way.</p>
+        </div>
+        <div class="feature-card">
+            <h3>🌍 Distance Matters</h3>
+            <p>Delivery time reflects the real distance your letter travels. A letter across town arrives faster than one across the ocean.</p>
+        </div>
+        <div class="feature-card">
+            <h3>🔒 Encrypted & Private</h3>
+            <p>End-to-end encryption ensures your letters remain private. Only you and the recipient can read them.</p>
+        </div>
+        <div class="feature-card">
+            <h3>📜 Digital Postmarks</h3>
+            <p>Each post office stamps your letter with a unique postmark, creating a journey you can trace and treasure.</p>
+        </div>
+    </div>
+    
+    <div class="cta">
+        <h2>Ready to slow down?</h2>
+        <p>Be among the first to experience a new kind of email service.</p>
+        <br>
+        <a href="/signup.html" class="btn btn-primary" style="font-size: 1.2rem; padding: 1rem 2rem;">Start Sending</a>
+    </div>
+    
+    <div class="footer">
+        <p>🐌 Snaelmail - Where every letter tells a story</p>
+        <p style="margin-top: 0.5rem; opacity: 0.8;">© 2024 Snaelmail. All rights reserved.</p>
+    </div>
+</body>
+</html>

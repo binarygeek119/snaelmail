@@ -1,0 +1,150 @@
+[
+  {
+    "name": "local_same_city",
+    "origin": {
+      "id": 1,
+      "cc": "US",
+      "city": "New York",
+      "lat": 40.7128,
+      "lon": -74.006
+    },
+    "dest": {
+      "id": 1,
+      "cc": "US",
+      "city": "New York",
+      "lat": 40.7128,
+      "lon": -74.006
+    },
+    "class": "first",
+    "queued_at": "2026-11-16T10:00:00Z",
+    "hops": [
+      {
+        "idx": 0,
+        "relay_id": 1,
+        "from_cc": "",
+        "to_cc": "US",
+        "leg_km": 0,
+        "stamp_at": "0001-01-01T00:00:00Z"
+      }
+    ],
+    "deliver_at": "0001-01-01T00:00:00Z",
+    "total_km": 0
+  },
+  {
+    "name": "domestic_short_first",
+    "origin": {
+      "id": 1,
+      "cc": "US",
+      "city": "New York",
+      "lat": 40.7128,
+      "lon": -74.006
+    },
+    "dest": {
+      "id": 2,
+      "cc": "US",
+      "city": "Chicago",
+      "lat": 41.8781,
+      "lon": -87.6298
+    },
+    "class": "first",
+    "queued_at": "2026-11-16T10:00:00Z",
+    "hops": [
+      {
+        "idx": 0,
+        "relay_id": 1,
+        "from_cc": "US",
+        "to_cc": "US",
+        "leg_km": 1144.2912739463475,
+        "stamp_at": "2026-11-18T07:46:17.943448273Z"
+      },
+      {
+        "idx": 1,
+        "relay_id": 2,
+        "from_cc": "US",
+        "to_cc": "US",
+        "leg_km": 0,
+        "stamp_at": "2026-11-18T07:46:17.943448273Z"
+      }
+    ],
+    "deliver_at": "2026-11-18T08:46:17.943448273Z",
+    "total_km": 1144.2912739463475
+  },
+  {
+    "name": "cross_border_surface",
+    "origin": {
+      "id": 1,
+      "cc": "US",
+      "city": "New York",
+      "lat": 40.7128,
+      "lon": -74.006
+    },
+    "dest": {
+      "id": 5,
+      "cc": "CA",
+      "city": "Montreal",
+      "lat": 45.5017,
+      "lon": -73.5673
+    },
+    "class": "surface",
+    "queued_at": "2026-11-16T10:00:00Z",
+    "hops": [
+      {
+        "idx": 0,
+        "relay_id": 1,
+        "from_cc": "US",
+        "to_cc": "CA",
+        "leg_km": 533.6884829149176,
+        "stamp_at": "2026-11-21T12:00:42.001822947Z"
+      },
+      {
+        "idx": 1,
+        "relay_id": 5,
+        "from_cc": "CA",
+        "to_cc": "CA",
+        "leg_km": 0,
+        "stamp_at": "2026-11-21T12:00:42.001822947Z"
+      }
+    ],
+    "deliver_at": "2026-11-21T13:00:42.001822947Z",
+    "total_km": 533.6884829149176
+  },
+  {
+    "name": "international_air",
+    "origin": {
+      "id": 1,
+      "cc": "US",
+      "city": "New York",
+      "lat": 40.7128,
+      "lon": -74.006
+    },
+    "dest": {
+      "id": 8,
+      "cc": "JP",
+      "city": "Tokyo",
+      "lat": 35.6762,
+      "lon": 139.6503
+    },
+    "class": "air",
+    "queued_at": "2026-11-16T10:00:00Z",
+    "hops": [
+      {
+        "idx": 0,
+        "relay_id": 1,
+        "from_cc": "US",
+        "to_cc": "JP",
+        "leg_km": 10851.732848762305,
+        "stamp_at": "2026-11-30T11:54:10.943875478Z"
+      },
+      {
+        "idx": 1,
+        "relay_id": 8,
+        "from_cc": "JP",
+        "to_cc": "JP",
+        "leg_km": 0,
+        "stamp_at": "2026-11-30T11:54:10.943875478Z"
+      }
+    ],
+    "deliver_at": "2026-11-30T12:54:10.943875478Z",
+    "total_km": 10851.732848762305
+  }
+]

@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - Snaelmail</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: #f5f7fa;
+            min-height: 100vh;
+        }
+        
+        .nav {
+            background: white;
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .logo {
+            font-size: 1.8rem;
+            font-weight: bold;
+            color: #667eea;
+            text-decoration: none;
+        }
+        
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+        
+        .user-handle {
+            color: #667eea;
+            font-weight: 500;
+        }
+        
+        .btn {
+            padding: 0.6rem 1.5rem;
+            border-radius: 25px;
+            text-decoration: none;
+            font-weight: 500;
+            transition: all 0.3s;
+            border: none;
+            cursor: pointer;
+            font-size: 1rem;
+        }
+        
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+        
+        .btn-logout {
+            background: #f0f0f0;
+            color: #666;
+        }
+        
+        .btn-logout:hover {
+            background: #e0e0e0;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 2rem auto;
+            padding: 0 2rem;
+        }
+        
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: 1fr 2fr;
+            gap: 2rem;
+        }
+        
+        .compose-panel {
+            background: white;
+            padding: 2rem;
+            border-radius: 15px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            height: fit-content;
+        }
+        
+        .compose-panel h2 {
+            color: #667eea;
+            margin-bottom: 1.5rem;
+        }
+        
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: #333;
+            font-weight: 500;
+        }
+        
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 0.8rem;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 1rem;
+            transition: border-color 0.3s;
+            font-family: inherit;
+        }
+        
+        .form-group textarea {
+            min-height: 150px;
+            resize: vertical;
+        }
+        
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .mail-panel {
+            background: white;
+            padding: 2rem;
+            border-radius: 15px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .tabs {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 2rem;
+            border-bottom: 2px solid #e0e0e0;
+        }
+        
+        .tab {
+            padding: 0.8rem 1.5rem;
+            background: none;
+            border: none;
+            color: #666;
+            font-weight: 500;
+            cursor: pointer;
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s;
+        }
+        
+        .tab.active {
+            color: #667eea;
+            border-bottom-color: #667eea;
+        }
+        
+        .mail-list {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+        
+        .mail-item {
+            padding: 1.5rem;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            transition: all 0.3s;
+            cursor: pointer;
+        }
+        
+        .mail-item:hover {
+            border-color: #667eea;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        
+        .mail-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 0.5rem;
+        }
+        
+        .mail-from {
+            font-weight: 600;
+            color: #333;
+        }
+        
+        .mail-date {
+            color: #888;
+            font-size: 0.9rem;
+        }
+        
+        .mail-subject {
+            font-weight: 500;
+            color: #667eea;
+            margin-bottom: 0.5rem;
+        }
+        
+        .mail-preview {
+            color: #666;
+            font-size: 0.9rem;
+            line-height: 1.5;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 3rem;
+            color: #888;
+        }
+        
+        .empty-state h3 {
+            margin-bottom: 0.5rem;
+            color: #666;
+        }
+        
+        .alert {
+            padding: 1rem;
+            border-radius: 10px;
+            margin-bottom: 1rem;
+            display: none;
+        }
+        
+        .alert-success {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .alert-error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
+        @media (max-width: 768px) {
+            .dashboard-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .nav {
+                padding: 1rem;
+            }
+            
+            .container {
+                padding: 0 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <nav class="nav">
+        <a href="/" class="logo">🐌 Snaelmail</a>
+        <div class="user-info">
+            <span class="user-handle" id="userHandle">@user</span>
+            <button class="btn btn-logout" onclick="logout()">Log Out</button>
+        </div>
+    </nav>
+    
+    <div class="container">
+        <div class="dashboard-grid">
+            <div class="compose-panel">
+                <h2>Compose Letter</h2>
+                <div id="composeAlert" class="alert"></div>
+                <form id="composeForm">
+                    <div class="form-group">
+                        <label for="recipient">Email Address</label>
+                        <input type="email" id="recipient" name="recipient" 
+                               placeholder="user@snaelmail.org or friend@gmail.com" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="subject">Subject</label>
+                        <input type="text" id="subject" name="subject" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="body">Letter</label>
+                        <textarea id="body" name="body" required 
+                                  placeholder="Write your letter here..."></textarea>
+                        <small style="color: #666; margin-top: 0.5rem; display: block;">
+                            📮 Send to any email address - delivery time depends on distance
+                        </small>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary">Send Letter</button>
+                </form>
+            </div>
+            
+            <div class="mail-panel">
+                <div class="tabs">
+                    <button class="tab active" data-tab="inbox">Inbox</button>
+                    <button class="tab" data-tab="outbox">Sent</button>
+                </div>
+                
+                <div id="inbox" class="mail-list">
+                    <div class="empty-state">
+                        <h3>No messages yet</h3>
+                        <p>Your inbox is empty. Send a letter to get started!</p>
+                    </div>
+                </div>
+                
+                <div id="outbox" class="mail-list" style="display: none;">
+                    <div class="empty-state">
+                        <h3>No sent messages</h3>
+                        <p>You haven't sent any letters yet.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Check authentication
+        const token = localStorage.getItem('authToken');
+        const userId = localStorage.getItem('userId');
+        const handle = localStorage.getItem('handle');
+        
+        if (!token || !userId) {
+            window.location.href = '/login.html';
+        }
+        
+        // Display user handle
+        document.getElementById('userHandle').textContent = '@' + handle;
+        
+        // Tab switching
+        const tabs = document.querySelectorAll('.tab');
+        const inbox = document.getElementById('inbox');
+        const outbox = document.getElementById('outbox');
+        
+        tabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                tabs.forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                
+                const tabName = tab.dataset.tab;
+                if (tabName === 'inbox') {
+                    inbox.style.display = 'flex';
+                    outbox.style.display = 'none';
+                } else {
+                    inbox.style.display = 'none';
+                    outbox.style.display = 'flex';
+                }
+            });
+        });
+        
+        // Compose form
+        const composeForm = document.getElementById('composeForm');
+        const composeAlert = document.getElementById('composeAlert');
+        
+        composeForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const recipient = document.getElementById('recipient').value;
+            const subject = document.getElementById('subject').value;
+            const body = document.getElementById('body').value;
+            
+            try {
+                const response = await fetch('/api/letters', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + token
+                    },
+                    body: JSON.stringify({
+                        recipient: recipient,
+                        subject: subject,
+                        body: body
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (!response.ok) {
+                    throw new Error(data.error || 'Failed to send letter');
+                }
+                
+                // Success
+                composeAlert.className = 'alert alert-success';
+                composeAlert.textContent = 'Letter sent successfully! It will arrive based on the distance to the recipient.';
+                composeAlert.style.display = 'block';
+                
+                // Reset form
+                composeForm.reset();
+                
+                // Refresh mail list
+                loadMail();
+                
+                // Hide alert after 5 seconds
+                setTimeout(() => {
+                    composeAlert.style.display = 'none';
+                }, 5000);
+                
+            } catch (error) {
+                composeAlert.className = 'alert alert-error';
+                composeAlert.textContent = error.message;
+                composeAlert.style.display = 'block';
+            }
+        });
+        
+        // Load mail
+        async function loadMail() {
+            try {
+                // Load inbox
+                const inboxResponse = await fetch('/inbox', {
+                    headers: {
+                        'Authorization': 'Bearer ' + token
+                    }
+                });
+                
+                if (inboxResponse.ok) {
+                    const inboxData = await inboxResponse.json();
+                    renderMailList(inbox, inboxData, 'inbox');
+                }
+                
+                // Load outbox
+                const outboxResponse = await fetch('/outbox', {
+                    headers: {
+                        'Authorization': 'Bearer ' + token
+                    }
+                });
+                
+                if (outboxResponse.ok) {
+                    const outboxData = await outboxResponse.json();
+                    renderMailList(outbox, outboxData, 'outbox');
+                }
+                
+            } catch (error) {
+                console.error('Failed to load mail:', error);
+            }
+        }
+        
+        function renderMailList(element, messages, type) {
+            if (!messages || messages.length === 0) {
+                element.innerHTML = `
+                    <div class="empty-state">
+                        <h3>No messages yet</h3>
+                        <p>${type === 'inbox' ? 'Your inbox is empty. Send a letter to get started!' : "You haven't sent any letters yet."}</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            element.innerHTML = messages.map(msg => `
+                <div class="mail-item" onclick="viewLetter('${msg.id}')">
+                    <div class="mail-header">
+                        <span class="mail-from">${type === 'inbox' ? msg.sender_handle : msg.recipient_handle}</span>
+                        <span class="mail-date">${formatDate(msg.deliver_at || msg.queued_at)}</span>
+                    </div>
+                    <div class="mail-subject">${escapeHtml(msg.subject)}</div>
+                    <div class="mail-preview">${escapeHtml(msg.preview || msg.body || '').substring(0, 100)}...</div>
+                </div>
+            `).join('');
+        }
+        
+        function formatDate(dateStr) {
+            if (!dateStr) return '';
+            const date = new Date(dateStr);
+            const now = new Date();
+            const diff = now - date;
+            const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+            
+            if (days === 0) return 'Today';
+            if (days === 1) return 'Yesterday';
+            if (days < 7) return days + ' days ago';
+            
+            return date.toLocaleDateString();
+        }
+        
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        function viewLetter(id) {
+            // TODO: Implement letter viewing
+            alert('Letter viewing coming soon!');
+        }
+        
+        function logout() {
+            localStorage.removeItem('authToken');
+            localStorage.removeItem('userId');
+            localStorage.removeItem('handle');
+            window.location.href = '/login.html';
+        }
+        
+        // Initial load
+        loadMail();
+        
+        // Refresh every 30 seconds
+        setInterval(loadMail, 30000);
+    </script>
+</body>
+</html>

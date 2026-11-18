@@ -1,0 +1,13 @@
+# Holidays when no mail moves. Format: "YYYY-MM-DD" or "MM-DD" (recurring).
+# Add country-specific holidays as needed.
+
+recurring = [
+  "01-01", # New Year's Day
+  "12-25", # Christmas Day
+  "12-26", # Boxing Day
+]
+
+# One-off holidays (full date)
+specific = [
+  "2026-11-26", # example: Thanksgiving
+]

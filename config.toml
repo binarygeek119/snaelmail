@@ -1,0 +1,36 @@
+mail_domain = "snailmail.duckdns.org"
+site_key    = "/etc/snailmail/site.key"
+
+[speed_km_per_day]
+surface = 250
+first   = 800
+air     = 2500
+
+[handling]
+base_hours        = 4
+per_100_queued_h  = 2
+gap_threshold_km  = 600
+gap_hours_per_600 = 6
+
+[route]
+max_hops        = 6
+local_radius_km = 25
+cone_deg        = 60
+min_progress    = 0.08
+
+[calendar]
+no_movement_weekdays  = [0]
+saturday_speed_factor = 0.5
+holidays              = "holidays.toml"
+
+[customs]
+hold_min_h = 12
+hold_max_h = 72
+
+[stamp]
+canvas    = [320, 400]
+positions = [[18,16],[18,120],[18,224],[18,300],[120,16],[120,120]]
+
+[limits]
+max_surface_days = 45
+max_air_days     = 21

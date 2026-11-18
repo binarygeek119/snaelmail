@@ -1,0 +1,18 @@
+[Unit]
+Description=Snailmail Dynamic DNS Updater
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/opt/snailmail/scripts/update-dynamic-dns.sh --daemon
+Restart=always
+RestartSec=60
+StandardOutput=journal
+StandardError=journal
+
+# Security
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
