@@ -308,6 +308,16 @@
             window.location.href = '/login.html';
         }
         
+        // Handle authentication errors
+        function handleAuthError(response) {
+            if (response.status === 401) {
+                localStorage.clear();
+                window.location.href = '/login.html';
+                return true;
+            }
+            return false;
+        }
+        
         // Check admin status
         async function checkAdmin() {
             try {
@@ -318,6 +328,7 @@
                 });
                 
                 if (!response.ok) {
+                    if (handleAuthError(response)) return false;
                     if (response.status === 403) {
                         alert('Access denied. Admin privileges required.');
                         window.location.href = '/dashboard.html';
@@ -358,7 +369,9 @@
                     }
                 });
                 
-                if (response.ok) {
+                if (!response.ok) {
+                    if (handleAuthError(response)) return;
+                } else {
                     const data = await response.json();
                     const tbody = document.getElementById('usersBody');
                     tbody.innerHTML = '';
@@ -394,7 +407,9 @@
                     }
                 });
                 
-                if (response.ok) {
+                if (!response.ok) {
+                    if (handleAuthError(response)) return;
+                } else {
                     const data = await response.json();
                     const tbody = document.getElementById('relaysBody');
                     tbody.innerHTML = '';
@@ -431,7 +446,9 @@
                     }
                 });
                 
-                if (response.ok) {
+                if (!response.ok) {
+                    if (handleAuthError(response)) return;
+                } else {
                     const data = await response.json();
                     const tbody = document.getElementById('lettersBody');
                     tbody.innerHTML = '';
