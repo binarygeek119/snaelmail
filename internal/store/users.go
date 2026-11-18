@@ -27,6 +27,7 @@ type User struct {
 	LettersToday      int
 	QuotaDay          time.Time
 	CreatedAt         time.Time
+	IsAdmin           bool
 }
 
 // CreateUser inserts a new user. Returns the created user with generated fields.
@@ -53,11 +54,11 @@ func (s *Store) GetUserByID(ctx context.Context, id uuid.UUID) (*User, error) {
 	var u User
 	err := s.pool.QueryRow(ctx, `
 		SELECT id, handle, address, email, pass_hash, display_name, home_relay_id,
-		       home_relay_changed_at, status, storage_bytes, letters_today, quota_day, created_at
+		       home_relay_changed_at, status, storage_bytes, letters_today, quota_day, created_at, is_admin
 		FROM users WHERE id = $1
 	`, id).Scan(
 		&u.ID, &u.Handle, &u.Address, &u.Email, &u.PassHash, &u.DisplayName, &u.HomeRelayID,
-		&u.HomeRelayChangedAt, &u.Status, &u.StorageBytes, &u.LettersToday, &u.QuotaDay, &u.CreatedAt,
+		&u.HomeRelayChangedAt, &u.Status, &u.StorageBytes, &u.LettersToday, &u.QuotaDay, &u.CreatedAt, &u.IsAdmin,
 	)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, nil
@@ -73,11 +74,11 @@ func (s *Store) GetUserByHandle(ctx context.Context, handle string) (*User, erro
 	var u User
 	err := s.pool.QueryRow(ctx, `
 		SELECT id, handle, address, email, pass_hash, display_name, home_relay_id,
-		       home_relay_changed_at, status, storage_bytes, letters_today, quota_day, created_at
+		       home_relay_changed_at, status, storage_bytes, letters_today, quota_day, created_at, is_admin
 		FROM users WHERE handle = $1
 	`, handle).Scan(
 		&u.ID, &u.Handle, &u.Address, &u.Email, &u.PassHash, &u.DisplayName, &u.HomeRelayID,
-		&u.HomeRelayChangedAt, &u.Status, &u.StorageBytes, &u.LettersToday, &u.QuotaDay, &u.CreatedAt,
+		&u.HomeRelayChangedAt, &u.Status, &u.StorageBytes, &u.LettersToday, &u.QuotaDay, &u.CreatedAt, &u.IsAdmin,
 	)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, nil
@@ -93,11 +94,11 @@ func (s *Store) GetUserByAddress(ctx context.Context, address string) (*User, er
 	var u User
 	err := s.pool.QueryRow(ctx, `
 		SELECT id, handle, address, email, pass_hash, display_name, home_relay_id,
-		       home_relay_changed_at, status, storage_bytes, letters_today, quota_day, created_at
+		       home_relay_changed_at, status, storage_bytes, letters_today, quota_day, created_at, is_admin
 		FROM users WHERE address = $1
 	`, address).Scan(
 		&u.ID, &u.Handle, &u.Address, &u.Email, &u.PassHash, &u.DisplayName, &u.HomeRelayID,
-		&u.HomeRelayChangedAt, &u.Status, &u.StorageBytes, &u.LettersToday, &u.QuotaDay, &u.CreatedAt,
+		&u.HomeRelayChangedAt, &u.Status, &u.StorageBytes, &u.LettersToday, &u.QuotaDay, &u.CreatedAt, &u.IsAdmin,
 	)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, nil
@@ -113,11 +114,11 @@ func (s *Store) GetUserByEmail(ctx context.Context, email string) (*User, error)
 	var u User
 	err := s.pool.QueryRow(ctx, `
 		SELECT id, handle, address, email, pass_hash, display_name, home_relay_id,
-		       home_relay_changed_at, status, storage_bytes, letters_today, quota_day, created_at
+		       home_relay_changed_at, status, storage_bytes, letters_today, quota_day, created_at, is_admin
 		FROM users WHERE email = $1
 	`, email).Scan(
 		&u.ID, &u.Handle, &u.Address, &u.Email, &u.PassHash, &u.DisplayName, &u.HomeRelayID,
-		&u.HomeRelayChangedAt, &u.Status, &u.StorageBytes, &u.LettersToday, &u.QuotaDay, &u.CreatedAt,
+		&u.HomeRelayChangedAt, &u.Status, &u.StorageBytes, &u.LettersToday, &u.QuotaDay, &u.CreatedAt, &u.IsAdmin,
 	)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, nil

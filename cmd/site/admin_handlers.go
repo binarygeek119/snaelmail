@@ -28,9 +28,8 @@ func (app *appState) handleAdminPanel(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Check if user is admin (you'll need to add an IsAdmin field to the User struct)
-	// For now, check if user handle is "admin"
-	if user.Handle != "admin" {
+	// Check if user is admin
+	if !user.IsAdmin {
 		writeJSON(w, http.StatusForbidden, map[string]string{"error": "admin access required"})
 		return
 	}

@@ -80,6 +80,9 @@ func main() {
 	mux.HandleFunc("GET /dashboard.html", func(w http.ResponseWriter, r *http.Request) {
 		http.ServeFile(w, r, "web/site/dashboard.html")
 	})
+	mux.HandleFunc("GET /settings.html", func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, "web/site/settings.html")
+	})
 
 	// Health checks
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
