@@ -90,8 +90,8 @@ func TestGenerateCode(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GenerateCode: %v", err)
 	}
-	if len(code1) != 8 {
-		t.Errorf("code length = %d, want 8", len(code1))
+	if len(code1) != 6 {
+		t.Errorf("code length = %d, want 6", len(code1))
 	}
 
 	code2, err := GenerateCode()
