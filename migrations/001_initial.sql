@@ -29,6 +29,7 @@ CREATE TABLE IF NOT EXISTS relays (
     CHECK (status IN ('pending','active','unverified','throttled','retired','suspended')),
   official bool NOT NULL DEFAULT false,
   paused bool NOT NULL DEFAULT false,
+  central bool NOT NULL DEFAULT false,
   opened_at timestamptz,
   retired_at timestamptz,
   last_txt_check timestamptz,
