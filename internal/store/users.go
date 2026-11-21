@@ -69,6 +69,12 @@ func (s *Store) GetUserByID(ctx context.Context, id uuid.UUID) (*User, error) {
 	return &u, nil
 }
 
+// VerifyUser sets user status to 'verified'.
+func (s *Store) VerifyUser(ctx context.Context, id uuid.UUID) error {
+	_, err := s.pool.Exec(ctx, `UPDATE users SET status = 'verified' WHERE id = $1`, id)
+	return err
+}
+
 // GetUserByHandle fetches a user by handle (case-insensitive via citext).
 func (s *Store) GetUserByHandle(ctx context.Context, handle string) (*User, error) {
 	var u User
@@ -129,10 +135,17 @@ func (s *Store) GetUserByEmail(ctx context.Context, email string) (*User, error)
 	return &u, nil
 }
 
-// VerifyUser sets user status to 'verified'.
-func (s *Store) VerifyUser(ctx context.Context, id uuid.UUID) error {
-	_, err := s.pool.Exec(ctx, `UPDATE users SET status = 'verified' WHERE id = $1`, id)
-	return err
+// UpdateUserPassword updates a user's password hash
+func (s *Store) UpdateUserPassword(ctx context.Context, userID uuid.UUID, newPassHash string) error {
+	_, err := s.pool.Exec(ctx, `
+		UPDATE users
+		SET pass_hash = $1
+		WHERE id = $2
+	`, newPassHash, userID)
+	if err != nil {
+		return fmt.Errorf("failed to update password: %w", err)
+	}
+	return nil
 }
 
 // Verification represents a pending verification code.
