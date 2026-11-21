@@ -25,20 +25,27 @@ func NewAdminService(store *store.Store, pool *pgxpool.Pool) *AdminService {
 	}
 }
 
-// SuspendUser suspends a user account
-func (s *AdminService) SuspendUser(ctx context.Context, userID uuid.UUID, adminID uuid.UUID, reason string) error {
+// SuspendUser suspends a user account for a specified duration
+func (s *AdminService) SuspendUserWithDuration(ctx context.Context, userID uuid.UUID, adminID uuid.UUID, reason string, duration time.Duration) error {
 	// Log the action
 	err := s.logAdminAction(ctx, adminID, "suspend_user", userID, reason)
 	if err != nil {
 		return fmt.Errorf("failed to log admin action: %w", err)
 	}
 
-	// Suspend user
+	// Calculate suspension end time
+	var suspendedUntil *time.Time
+	if duration > 0 {
+		endTime := time.Now().Add(duration)
+		suspendedUntil = &endTime
+	}
+
+	// Suspend user with duration
 	_, err = s.pool.Exec(ctx, `
 		UPDATE users 
-		SET status = 'suspended'
-		WHERE id = $1
-	`, userID)
+		SET status = 'suspended', suspended_until = $1
+		WHERE id = $2
+	`, suspendedUntil, userID)
 	if err != nil {
 		return fmt.Errorf("failed to suspend user: %w", err)
 	}

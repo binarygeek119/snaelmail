@@ -204,6 +204,15 @@
             color: white;
         }
         
+        .action-btn.delete {
+            background: #6c757d;
+            color: white;
+        }
+        
+        .action-btn.delete:hover {
+            background: #5a6268;
+        }
+        
         .loading {
             text-align: center;
             padding: 2rem;
@@ -391,13 +400,24 @@
                     data.users.forEach(user => {
                         const row = tbody.insertRow();
                         row.innerHTML = `
-                            <td>${user.address || user.email || user.handle + '@snaelmail.org'}</td>
+                            <td>${user.address || user.handle + '@snaelmail.org'}</td>
                             <td>${user.handle}</td>
                             <td><span class="status-badge status-${user.status}">${user.status}</span></td>
                             <td>${new Date(user.created_at).toLocaleDateString()}</td>
                             <td>
                                 <button class="action-btn view" onclick="viewUser('${user.id}')">View</button>
-                                ${user.status !== 'suspended' ? `<button class="action-btn suspend" onclick="suspendUser('${user.id}')">Suspend</button>` : ''}
+                                ${user.status !== 'suspended' ? `
+                                    <select id="suspend-${user.id}" style="padding: 0.3rem; margin: 0 0.5rem; border-radius: 4px; border: 1px solid #ddd;">
+                                        <option value="1d">1 Day</option>
+                                        <option value="15d">15 Days</option>
+                                        <option value="30d">30 Days</option>
+                                        <option value="60d">60 Days</option>
+                                        <option value="1y">1 Year</option>
+                                        <option value="forever">Forever</option>
+                                    </select>
+                                    <button class="action-btn suspend" onclick="suspendUser('${user.id}', document.getElementById('suspend-${user.id}').value)">Suspend</button>
+                                ` : `<button class="action-btn" onclick="unsuspendUser('${user.id}')">Unsuspend</button>`}
+                                <button class="action-btn delete" onclick="deleteUser('${user.id}')">Delete</button>
                             </td>
                         `;
                     });
@@ -489,6 +509,92 @@
         
         function viewUser(id) {
             alert('View user: ' + id);
+        }
+        
+        async function suspendUser(id, duration) {
+            const reason = prompt('Enter reason for suspension:');
+            if (!reason) return;
+            
+            try {
+                const response = await fetch(`/api/admin/users/${id}/suspend`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + token
+                    },
+                    body: JSON.stringify({ reason, duration })
+                });
+                
+                if (response.ok) {
+                    alert('User suspended successfully');
+                    loadUsers();
+                } else {
+                    const error = await response.json();
+                    alert(error.error || 'Error suspending user');
+                }
+            } catch (error) {
+                console.error('Error suspending user:', error);
+                alert('Error suspending user');
+            }
+        }
+        
+        async function unsuspendUser(id) {
+            if (!confirm('Are you sure you want to unsuspend this user?')) {
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/admin/users/${id}/unsuspend`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + token
+                    },
+                    body: JSON.stringify({ reason: 'Manual unsuspension' })
+                });
+                
+                if (response.ok) {
+                    alert('User unsuspended successfully');
+                    loadUsers();
+                } else {
+                    const error = await response.json();
+                    alert(error.error || 'Error unsuspending user');
+                }
+            } catch (error) {
+                console.error('Error unsuspending user:', error);
+                alert('Error unsuspending user');
+            }
+        }
+        
+        async function deleteUser(id) {
+            const reason = prompt('Enter reason for deletion (this will permanently delete the account):');
+            if (!reason) return;
+            
+            if (!confirm('Are you ABSOLUTELY sure? This cannot be undone!')) {
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/admin/users/${id}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + token
+                    },
+                    body: JSON.stringify({ reason })
+                });
+                
+                if (response.ok) {
+                    alert('User deleted successfully');
+                    loadUsers();
+                } else {
+                    const error = await response.json();
+                    alert(error.error || 'Error deleting user');
+                }
+            } catch (error) {
+                console.error('Error deleting user:', error);
+                alert('Error deleting user');
+            }
         }
         
         function suspendUser(id) {

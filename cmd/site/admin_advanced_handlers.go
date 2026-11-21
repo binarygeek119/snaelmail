@@ -16,7 +16,11 @@ import (
 
 // handleAdminSuspendUser handles POST /api/admin/users/:id/suspend
 func (app *appState) handleAdminSuspendUser(w http.ResponseWriter, r *http.Request) {
-	adminID := r.Context().Value("admin_id").(uuid.UUID)
+	_, user := app.requireAdmin(w, r)
+	if user == nil {
+		return
+	}
+
 	userIDStr := r.PathValue("id")
 	userID, err := uuid.Parse(userIDStr)
 	if err != nil {
@@ -25,43 +29,35 @@ func (app *appState) handleAdminSuspendUser(w http.ResponseWriter, r *http.Reque
 	}
 
 	var req struct {
-		Reason string `json:"reason"`
+		Reason   string `json:"reason"`
+		Duration string `json:"duration"` // "1d", "15d", "30d", "60d", "1y", "forever"
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid JSON"})
 		return
 	}
 
-	adminService := admin.NewAdminService(app.store, app.store.Pool())
-	err = adminService.SuspendUser(r.Context(), userID, adminID, req.Reason)
-	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
-		return
-	}
-
-	writeJSON(w, http.StatusOK, map[string]string{"status": "success"})
-}
-
-// handleAdminUnsuspendUser handles POST /api/admin/users/:id/unsuspend
-func (app *appState) handleAdminUnsuspendUser(w http.ResponseWriter, r *http.Request) {
-	adminID := r.Context().Value("admin_id").(uuid.UUID)
-	userIDStr := r.PathValue("id")
-	userID, err := uuid.Parse(userIDStr)
-	if err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid user_id"})
-		return
-	}
-
-	var req struct {
-		Reason string `json:"reason"`
-	}
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid JSON"})
-		return
+	// Parse duration
+	var duration time.Duration
+	switch req.Duration {
+	case "1d":
+		duration = 24 * time.Hour
+	case "15d":
+		duration = 15 * 24 * time.Hour
+	case "30d":
+		duration = 30 * 24 * time.Hour
+	case "60d":
+		duration = 60 * 24 * time.Hour
+	case "1y":
+		duration = 365 * 24 * time.Hour
+	case "forever":
+		duration = 0
+	default:
+		duration = 24 * time.Hour // Default to 1 day
 	}
 
 	adminService := admin.NewAdminService(app.store, app.store.Pool())
-	err = adminService.UnsuspendUser(r.Context(), userID, adminID, req.Reason)
+	err = adminService.SuspendUserWithDuration(r.Context(), userID, user.ID, req.Reason, duration)
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
 		return
@@ -72,7 +68,11 @@ func (app *appState) handleAdminUnsuspendUser(w http.ResponseWriter, r *http.Req
 
 // handleAdminDeleteUser handles DELETE /api/admin/users/:id
 func (app *appState) handleAdminDeleteUser(w http.ResponseWriter, r *http.Request) {
-	adminID := r.Context().Value("admin_id").(uuid.UUID)
+	_, user := app.requireAdmin(w, r)
+	if user == nil {
+		return
+	}
+
 	userIDStr := r.PathValue("id")
 	userID, err := uuid.Parse(userIDStr)
 	if err != nil {
@@ -89,7 +89,7 @@ func (app *appState) handleAdminDeleteUser(w http.ResponseWriter, r *http.Reques
 	}
 
 	adminService := admin.NewAdminService(app.store, app.store.Pool())
-	err = adminService.DeleteUser(r.Context(), userID, adminID, req.Reason)
+	err = adminService.DeleteUser(r.Context(), userID, user.ID, req.Reason)
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
 		return
@@ -100,7 +100,11 @@ func (app *appState) handleAdminDeleteUser(w http.ResponseWriter, r *http.Reques
 
 // handleAdminSuspendRelay handles POST /api/admin/relays/:id/suspend
 func (app *appState) handleAdminSuspendRelay(w http.ResponseWriter, r *http.Request) {
-	adminID := r.Context().Value("admin_id").(uuid.UUID)
+	_, user := app.requireAdmin(w, r)
+	if user == nil {
+		return
+	}
+
 	relayIDStr := r.PathValue("id")
 	relayID, err := uuid.Parse(relayIDStr)
 	if err != nil {
@@ -117,7 +121,7 @@ func (app *appState) handleAdminSuspendRelay(w http.ResponseWriter, r *http.Requ
 	}
 
 	adminService := admin.NewAdminService(app.store, app.store.Pool())
-	err = adminService.SuspendRelay(r.Context(), relayID, adminID, req.Reason)
+	err = adminService.SuspendRelay(r.Context(), relayID, user.ID, req.Reason)
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
 		return
@@ -128,7 +132,11 @@ func (app *appState) handleAdminSuspendRelay(w http.ResponseWriter, r *http.Requ
 
 // handleAdminUnsuspendRelay handles POST /api/admin/relays/:id/unsuspend
 func (app *appState) handleAdminUnsuspendRelay(w http.ResponseWriter, r *http.Request) {
-	adminID := r.Context().Value("admin_id").(uuid.UUID)
+	_, user := app.requireAdmin(w, r)
+	if user == nil {
+		return
+	}
+
 	relayIDStr := r.PathValue("id")
 	relayID, err := uuid.Parse(relayIDStr)
 	if err != nil {
@@ -145,7 +153,7 @@ func (app *appState) handleAdminUnsuspendRelay(w http.ResponseWriter, r *http.Re
 	}
 
 	adminService := admin.NewAdminService(app.store, app.store.Pool())
-	err = adminService.UnsuspendRelay(r.Context(), relayID, adminID, req.Reason)
+	err = adminService.UnsuspendRelay(r.Context(), relayID, user.ID, req.Reason)
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
 		return
@@ -156,7 +164,11 @@ func (app *appState) handleAdminUnsuspendRelay(w http.ResponseWriter, r *http.Re
 
 // handleAdminDeleteRelay handles DELETE /api/admin/relays/:id
 func (app *appState) handleAdminDeleteRelay(w http.ResponseWriter, r *http.Request) {
-	adminID := r.Context().Value("admin_id").(uuid.UUID)
+	_, user := app.requireAdmin(w, r)
+	if user == nil {
+		return
+	}
+
 	relayIDStr := r.PathValue("id")
 	relayID, err := uuid.Parse(relayIDStr)
 	if err != nil {
@@ -173,7 +185,7 @@ func (app *appState) handleAdminDeleteRelay(w http.ResponseWriter, r *http.Reque
 	}
 
 	adminService := admin.NewAdminService(app.store, app.store.Pool())
-	err = adminService.DeleteRelay(r.Context(), relayID, adminID, req.Reason)
+	err = adminService.DeleteRelay(r.Context(), relayID, user.ID, req.Reason)
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
 		return
@@ -184,19 +196,15 @@ func (app *appState) handleAdminDeleteRelay(w http.ResponseWriter, r *http.Reque
 
 // handleAdminActions handles GET /api/admin/actions
 func (app *appState) handleAdminActions(w http.ResponseWriter, r *http.Request) {
-	limit := 100
-	limitStr := r.URL.Query().Get("limit")
-	if limitStr != "" {
-		if n, err := uuid.Parse(limitStr); err == nil {
-			_ = n // Just validate it's a number
-			// In a real implementation, parse as int
-		}
+	_, user := app.requireAdmin(w, r)
+	if user == nil {
+		return
 	}
 
 	adminService := admin.NewAdminService(app.store, app.store.Pool())
-	actions, err := adminService.GetAdminActions(r.Context(), limit)
+	actions, err := adminService.GetAdminActions(r.Context(), 100)
 	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to get actions"})
 		return
 	}
 

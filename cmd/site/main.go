@@ -171,7 +171,6 @@ func main() {
 	
 	// Admin user management
 	mux.HandleFunc("POST /api/admin/users/{id}/suspend", app.handleAdminSuspendUser)
-	mux.HandleFunc("POST /api/admin/users/{id}/unsuspend", app.handleAdminUnsuspendUser)
 	mux.HandleFunc("DELETE /api/admin/users/{id}", app.handleAdminDeleteUser)
 	
 	// Admin relay management
