@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"strings"
@@ -76,12 +77,28 @@ func (app *appState) apiSignup(w http.ResponseWriter, r *http.Request) {
 	// Build address
 	address := strings.ToLower(req.Handle) + "@" + app.cfg.MailDomain
 
+	// Check if this is the first user (make them admin)
+	isFirstUser, err := app.store.IsFirstUser(r.Context())
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "database error"})
+		return
+	}
+
 	// Create user
 	email := req.Email
 	user, err := app.store.CreateUser(r.Context(), req.Handle, address, passHash, &email, req.DisplayName, req.HomeRelayID)
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to create user"})
 		return
+	}
+
+	// If first user, make them admin
+	if isFirstUser {
+		if err := app.store.SetUserAdmin(r.Context(), user.ID, true); err != nil {
+			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to set admin status"})
+			return
+		}
+		user.IsAdmin = true
 	}
 
 	// Generate verification code
@@ -98,6 +115,28 @@ func (app *appState) apiSignup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Send verification email
+	if user.Email != nil && *user.Email != "" {
+		go func() {
+			ctx := context.Background()
+			if err := app.notifier.SendVerificationEmail(ctx, *user.Email, code); err != nil {
+				// Log error but don't fail signup
+				// In production, you'd want to queue this for retry
+			}
+		}()
+	}
+
+	// Send verification email to user's external email
+	if user.Email != nil && *user.Email != "" {
+		go func() {
+			ctx := context.Background()
+			if err := app.notifier.SendVerificationEmail(ctx, *user.Email, code); err != nil {
+				// Log error but don't fail signup
+				// In production, you'd want to queue this for retry
+			}
+		}()
+	}
+
 	// In a real system, we'd queue an internal letter with the code
 	// For now, return it directly (dev mode)
 	var emailStr string
@@ -110,11 +149,68 @@ func (app *appState) apiSignup(w http.ResponseWriter, r *http.Request) {
 		"address":          user.Address,
 		"email":            emailStr,
 		"status":           user.Status,
-		"verification_code": code, // Remove in production
+		"verification_code": code, // Remove in production - code should only be sent via email
 	})
 }
 
-// apiVerify handles POST /api/verify
+// apiResendVerification handles POST /api/resend-verification
+func (app *appState) apiResendVerification(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		UserID string `json:"user_id"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid JSON"})
+		return
+	}
+
+	userID, err := uuid.Parse(req.UserID)
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid user_id"})
+		return
+	}
+
+	// Fetch user
+	user, err := app.store.GetUserByID(r.Context(), userID)
+	if err != nil || user == nil {
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": "user not found"})
+		return
+	}
+
+	// Check if already verified
+	if user.Status == "verified" {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "user already verified"})
+		return
+	}
+
+	// Generate new verification code
+	code, err := auth.GenerateCode()
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to generate code"})
+		return
+	}
+
+	// Create verification record (24h expiry)
+	expiresAt := time.Now().Add(24 * time.Hour)
+	if _, err := app.store.CreateVerification(r.Context(), user.ID, code, "verify", expiresAt); err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to create verification"})
+		return
+	}
+
+	// Send verification email
+	if user.Email != nil && *user.Email != "" {
+		go func() {
+			ctx := context.Background()
+			if err := app.notifier.SendVerificationEmail(ctx, *user.Email, code); err != nil {
+				// Log error but don't fail
+			}
+		}()
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"message":           "Verification code sent to your email",
+		"verification_code": code, // Remove in production
+	})
+}
 func (app *appState) apiVerify(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		UserID string `json:"user_id"`

@@ -257,13 +257,13 @@
                 }
                 
                 // Success!
-                successDiv.innerHTML = 'Account created! A 6-digit verification code has been sent to your email. Check your inbox and enter the code to verify your account.';
+                successDiv.innerHTML = 'Account created! A 6-digit verification code has been sent to your email. Enter it below to verify your account.';
                 successDiv.style.display = 'block';
                 
-                // Redirect to login after 3 seconds
+                // Redirect to verify page after 2 seconds
                 setTimeout(() => {
-                    window.location.href = '/login.html';
-                }, 3000);
+                    window.location.href = '/verify.html?user_id=' + data.user_id;
+                }, 2000);
                 
             } catch (error) {
                 errorDiv.textContent = error.message;

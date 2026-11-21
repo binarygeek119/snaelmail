@@ -15,13 +15,15 @@ import (
 	"time"
 
 	"snailmail/internal/config"
+	"snailmail/internal/notification"
 	"snailmail/internal/store"
 )
 
 type appState struct {
-	cfg     *config.Config
-	store   *store.Store
-	siteKey ed25519.PrivateKey
+	cfg      *config.Config
+	store    *store.Store
+	siteKey  ed25519.PrivateKey
+	notifier *notification.Notifier
 }
 
 func main() {
@@ -65,6 +67,17 @@ func main() {
 		siteKey: siteKey,
 	}
 
+	// Initialize notifier for email sending
+	emailConfig := notification.EmailConfig{
+		SMTPHost:     "smtp.gmail.com",
+		SMTPPort:     "587",
+		SMTPUsername: cfg.SMTPUsername,
+		SMTPPassword: cfg.SMTPPassword,
+		FromEmail:    "noreply@snaelmail.org",
+		FromName:     "Snaelmail",
+	}
+	app.notifier = notification.NewNotifier(emailConfig, store)
+
 	mux := http.NewServeMux()
 
 	// Serve static files (web UI)
@@ -85,6 +98,12 @@ func main() {
 		w.Header().Set("Pragma", "no-cache")
 		w.Header().Set("Expires", "0")
 		http.ServeFile(w, r, "web/site/signup.html")
+	})
+	mux.HandleFunc("GET /verify.html", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
+		w.Header().Set("Pragma", "no-cache")
+		w.Header().Set("Expires", "0")
+		http.ServeFile(w, r, "web/site/verify.html")
 	})
 	mux.HandleFunc("GET /dashboard.html", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
@@ -122,6 +141,7 @@ func main() {
 	// API routes - users
 	mux.HandleFunc("POST /api/signup", app.apiSignup)
 	mux.HandleFunc("POST /api/verify", app.apiVerify)
+	mux.HandleFunc("POST /api/resend-verification", app.apiResendVerification)
 	mux.HandleFunc("POST /api/session", app.apiSession)
 	mux.HandleFunc("POST /api/letters", app.apiLetters)
 	mux.HandleFunc("GET /api/letters/", app.apiGetLetter)

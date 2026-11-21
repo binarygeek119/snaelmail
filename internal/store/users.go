@@ -69,10 +69,23 @@ func (s *Store) GetUserByID(ctx context.Context, id uuid.UUID) (*User, error) {
 	return &u, nil
 }
 
-// VerifyUser sets user status to 'verified'.
-func (s *Store) VerifyUser(ctx context.Context, id uuid.UUID) error {
-	_, err := s.pool.Exec(ctx, `UPDATE users SET status = 'verified' WHERE id = $1`, id)
-	return err
+// IsFirstUser checks if there are no users in the database yet.
+func (s *Store) IsFirstUser(ctx context.Context) (bool, error) {
+	var count int
+	err := s.pool.QueryRow(ctx, "SELECT COUNT(*) FROM users").Scan(&count)
+	if err != nil {
+		return false, fmt.Errorf("failed to count users: %w", err)
+	}
+	return count == 0, nil
+}
+
+// SetUserAdmin sets the admin status of a user.
+func (s *Store) SetUserAdmin(ctx context.Context, userID uuid.UUID, isAdmin bool) error {
+	_, err := s.pool.Exec(ctx, "UPDATE users SET is_admin = $1 WHERE id = $2", isAdmin, userID)
+	if err != nil {
+		return fmt.Errorf("failed to set admin status: %w", err)
+	}
+	return nil
 }
 
 // GetUserByHandle fetches a user by handle (case-insensitive via citext).
@@ -223,6 +236,11 @@ func (s *Store) ConsumeVerification(ctx context.Context, userID uuid.UUID, code,
 		return fmt.Errorf("consume verification: %w", err)
 	}
 	return nil
+}
+// VerifyUser sets user status to 'verified'.
+func (s *Store) VerifyUser(ctx context.Context, id uuid.UUID) error {
+	_, err := s.pool.Exec(ctx, `UPDATE users SET status = 'verified' WHERE id = $1`, id)
+	return err
 }
 
 // CheckQuota checks if a user can send a letter today.
