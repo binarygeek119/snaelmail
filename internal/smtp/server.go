@@ -9,6 +9,7 @@ import (
 	"net"
 	"strings"
 
+	"snailmail/internal/spam"
 	"snailmail/internal/store"
 )
 
@@ -227,6 +228,8 @@ func (s *Server) processMessage(from string, to []string, data string) error {
 	subject := extractSubject(data)
 	body := extractBody(data)
 
+	spamFilter := spam.NewFilter(s.store)
+
 	for _, recipient := range to {
 		ctx := context.Background()
 
@@ -236,17 +239,27 @@ func (s *Server) processMessage(from string, to []string, data string) error {
 			continue
 		}
 
+		// Score for spam
+		score := spamFilter.ScoreEmail(ctx, "", from, subject, body)
+		isSpam := spamFilter.IsSpam(score)
+		spamFilter.LogScore(from, subject, score)
+
+		folder := "inbox"
+		if isSpam {
+			folder = "spam"
+		}
+
 		// Store the received email
 		_, err = s.store.Pool().Exec(ctx, `
-			INSERT INTO received_emails (user_id, from_address, to_address, subject, body_text, received_at)
-			VALUES ($1, $2, $3, $4, $5, now())
-		`, user.ID, from, recipient, subject, body)
+			INSERT INTO received_emails (user_id, from_address, to_address, subject, body_text, spam_score, is_spam, folder, received_at)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, now())
+		`, user.ID, from, recipient, subject, body, score.Total, isSpam, folder)
 		if err != nil {
 			log.Printf("Failed to store email for %s: %v", recipient, err)
 			continue
 		}
 
-		log.Printf("Stored email for %s from %s: %s", recipient, from, subject)
+		log.Printf("Stored email for %s from %s: %s (spam: %v, score: %.1f)", recipient, from, subject, isSpam, score.Total)
 	}
 
 	return nil

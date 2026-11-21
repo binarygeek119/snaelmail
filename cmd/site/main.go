@@ -15,8 +15,10 @@ import (
 	"time"
 
 	"snailmail/internal/config"
+	"snailmail/internal/imap"
 	"snailmail/internal/notification"
 	"snailmail/internal/outbound"
+	"snailmail/internal/pop3"
 	"snailmail/internal/smtp"
 	"snailmail/internal/store"
 )
@@ -92,7 +94,42 @@ func main() {
 		}()
 	}
 
-	// Start outbound delivery worker
+	// Start POP3 server on port 995 (TLS)
+	pop3Server, err := pop3.NewServer(store, "995", "/etc/letsencrypt/live/snaelmail.org/fullchain.pem", "/etc/letsencrypt/live/snaelmail.org/privkey.pem")
+	if err != nil {
+		log.Printf("warning: could not start POP3 server on port 995: %v", err)
+	} else {
+		go func() {
+			if err := pop3Server.Start(); err != nil {
+				log.Printf("POP3 server error: %v", err)
+			}
+		}()
+	}
+
+	// Start IMAP server on port 993 (TLS)
+	imapServer, err := imap.NewServer(store, "993", "/etc/letsencrypt/live/snaelmail.org/fullchain.pem", "/etc/letsencrypt/live/snaelmail.org/privkey.pem")
+	if err != nil {
+		log.Printf("warning: could not start IMAP server on port 993: %v", err)
+	} else {
+		go func() {
+			if err := imapServer.Start(); err != nil {
+				log.Printf("IMAP server error: %v", err)
+			}
+		}()
+	}
+
+	// Start SMTP submission server on port 587
+	submissionServer, err := smtp.NewSubmissionServer(store, "587", "", "")
+	if err != nil {
+		log.Printf("warning: could not start SMTP submission server on port 587: %v", err)
+	} else {
+		go func() {
+			if err := submissionServer.Start(); err != nil {
+				log.Printf("SMTP submission server error: %v", err)
+			}
+		}()
+	}
+
 	deliveryWorker := outbound.NewDeliveryWorker(store, 30*time.Second)
 	go deliveryWorker.Start()
 	defer deliveryWorker.Stop()
@@ -166,6 +203,7 @@ func main() {
 	mux.HandleFunc("GET /api/letters/", app.apiGetLetter)
 	mux.HandleFunc("GET /inbox", app.apiInbox)
 	mux.HandleFunc("GET /outbox", app.apiOutbox)
+	mux.HandleFunc("GET /api/received", app.apiReceivedEmails)
 
 	// API routes - relays
 	mux.HandleFunc("POST /api/relays", app.apiCreateRelay)

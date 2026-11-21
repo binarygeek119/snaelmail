@@ -546,6 +546,61 @@ func (app *appState) apiOutbox(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"outbox": envs})
 }
 
+// apiReceivedEmails handles GET /api/received
+func (app *appState) apiReceivedEmails(w http.ResponseWriter, r *http.Request) {
+	// Validate session
+	_, user := app.validateSession(w, r)
+	if user == nil {
+		return
+	}
+
+	rows, err := app.store.Pool().Query(r.Context(), `
+		SELECT id, from_address, to_address, subject, body_text, spam_score, is_spam, is_read, folder, received_at
+		FROM received_emails
+		WHERE user_id = $1
+		ORDER BY received_at DESC
+		LIMIT 50
+	`, user.ID)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "database error"})
+		return
+	}
+	defer rows.Close()
+
+	var emails []map[string]any
+	for rows.Next() {
+		var id, from, to, subject, body string
+		var spamScore float64
+		var isSpam, isRead bool
+		var folder string
+		var receivedAt time.Time
+		if err := rows.Scan(&id, &from, &to, &subject, &body, &spamScore, &isSpam, &isRead, &folder, &receivedAt); err != nil {
+			continue
+		}
+		emails = append(emails, map[string]any{
+			"id":          id,
+			"from":        from,
+			"to":          to,
+			"subject":     subject,
+			"body":        body,
+			"spam_score":  spamScore,
+			"is_spam":     isSpam,
+			"is_read":     isRead,
+			"folder":      folder,
+			"received_at": receivedAt,
+		})
+	}
+
+	if emails == nil {
+		emails = []map[string]any{}
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"emails": emails,
+		"count":  len(emails),
+	})
+}
+
 func writeJSON(w http.ResponseWriter, status int, data any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
