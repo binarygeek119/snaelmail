@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"log"
 	"net/http"
 	"strings"
 	"time"
@@ -115,24 +116,16 @@ func (app *appState) apiSignup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Send verification email
-	if user.Email != nil && *user.Email != "" {
-		go func() {
-			ctx := context.Background()
-			if err := app.notifier.SendVerificationEmail(ctx, *user.Email, code); err != nil {
-				// Log error but don't fail signup
-				// In production, you'd want to queue this for retry
-			}
-		}()
-	}
-
 	// Send verification email to user's external email
+	log.Printf("Signup: checking if user has email: %v", user.Email != nil)
 	if user.Email != nil && *user.Email != "" {
 		go func() {
+			log.Printf("Attempting to send verification email to %s", *user.Email)
 			ctx := context.Background()
 			if err := app.notifier.SendVerificationEmail(ctx, *user.Email, code); err != nil {
-				// Log error but don't fail signup
-				// In production, you'd want to queue this for retry
+				log.Printf("Failed to send verification email to %s: %v", *user.Email, err)
+			} else {
+				log.Printf("Verification email sent successfully to %s", *user.Email)
 			}
 		}()
 	}
@@ -143,6 +136,7 @@ func (app *appState) apiSignup(w http.ResponseWriter, r *http.Request) {
 	if user.Email != nil {
 		emailStr = *user.Email
 	}
+
 	writeJSON(w, http.StatusCreated, map[string]any{
 		"user_id":          user.ID,
 		"handle":           user.Handle,
@@ -201,7 +195,9 @@ func (app *appState) apiResendVerification(w http.ResponseWriter, r *http.Reques
 		go func() {
 			ctx := context.Background()
 			if err := app.notifier.SendVerificationEmail(ctx, *user.Email, code); err != nil {
-				// Log error but don't fail
+				log.Printf("Failed to send verification email to %s: %v", *user.Email, err)
+			} else {
+				log.Printf("Verification email resent successfully to %s", *user.Email)
 			}
 		}()
 	}
@@ -211,6 +207,7 @@ func (app *appState) apiResendVerification(w http.ResponseWriter, r *http.Reques
 		"verification_code": code, // Remove in production
 	})
 }
+
 func (app *appState) apiVerify(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		UserID string `json:"user_id"`

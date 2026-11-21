@@ -118,6 +118,11 @@ func (n *Notifier) OutForDeliveryEmail(ctx context.Context, userID uuid.UUID, en
 
 // sendEmail sends an email using SMTP
 func (n *Notifier) sendEmail(to, subject, body string) error {
+	// Check if SMTP is configured
+	if n.config.SMTPUsername == "" || n.config.SMTPPassword == "" {
+		return fmt.Errorf("SMTP not configured: missing username or password")
+	}
+
 	// Create email message
 	msg := fmt.Sprintf("From: %s <%s>\r\n"+
 		"To: %s\r\n"+
