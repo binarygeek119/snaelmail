@@ -4,14 +4,12 @@ import (
 	"bufio"
 	"context"
 	"fmt"
+	"io"
 	"log"
 	"net"
 	"strings"
-	"time"
 
 	"snailmail/internal/store"
-
-	"github.com/google/uuid"
 )
 
 // Server represents an SMTP server
@@ -224,39 +222,31 @@ func extractEmail(arg string) string {
 	return strings.TrimSpace(arg)
 }
 
-// processMessage processes an incoming email message
+// processMessage processes an incoming email message and stores it
 func (s *Server) processMessage(from string, to []string, data string) error {
-	// Parse the email data
 	subject := extractSubject(data)
 	body := extractBody(data)
 
-	// For each recipient, create an envelope
 	for _, recipient := range to {
 		ctx := context.Background()
-		
-		// Get recipient user
+
 		user, err := s.store.GetUserByAddress(ctx, recipient)
 		if err != nil || user == nil {
 			log.Printf("Recipient not found: %s", recipient)
 			continue
 		}
 
-		// For now, create a simple envelope
-		// In production, this would be more sophisticated
-		envelopeID := uuid.New()
-		
-		// Log the received email
-		log.Printf("Received email for %s from %s: %s", recipient, from, subject)
-		
-		// TODO: Store the email in the database
-		// This would involve:
-		// 1. Creating an envelope
-		// 2. Creating hops for the route
-		// 3. Scheduling delivery
-		// 4. Stamping the message
-		
-		_ = envelopeID
-		_ = body
+		// Store the received email
+		_, err = s.store.Pool().Exec(ctx, `
+			INSERT INTO received_emails (user_id, from_address, to_address, subject, body_text, received_at)
+			VALUES ($1, $2, $3, $4, $5, now())
+		`, user.ID, from, recipient, subject, body)
+		if err != nil {
+			log.Printf("Failed to store email for %s: %v", recipient, err)
+			continue
+		}
+
+		log.Printf("Stored email for %s from %s: %s", recipient, from, subject)
 	}
 
 	return nil

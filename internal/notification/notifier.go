@@ -8,6 +8,7 @@ import (
 	"net/smtp"
 	"time"
 
+	"snailmail/internal/outbound"
 	"snailmail/internal/store"
 
 	"github.com/google/uuid"
@@ -118,11 +119,21 @@ func (n *Notifier) OutForDeliveryEmail(ctx context.Context, userID uuid.UUID, en
 
 // sendEmail sends an email using SMTP
 func (n *Notifier) sendEmail(to, subject, body string) error {
-	// Check if SMTP is configured
-	if n.config.SMTPUsername == "" || n.config.SMTPPassword == "" {
-		return fmt.Errorf("SMTP not configured: missing username or password")
+	// If SMTP credentials are configured, use SMTP relay
+	if n.config.SMTPUsername != "" && n.config.SMTPPassword != "" {
+		return n.sendViaSMTP(to, subject, body)
 	}
 
+	// Otherwise, use direct outbound delivery
+	result := outbound.DeliverEmail(context.Background(), n.config.FromEmail, to, subject, body, "")
+	if !result.Success {
+		return fmt.Errorf("direct delivery failed: %w", result.Error)
+	}
+	return nil
+}
+
+// sendViaSMTP sends email via configured SMTP relay
+func (n *Notifier) sendViaSMTP(to, subject, body string) error {
 	// Create email message
 	msg := fmt.Sprintf("From: %s <%s>\r\n"+
 		"To: %s\r\n"+

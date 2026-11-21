@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"snailmail/internal/auth"
+	"snailmail/internal/outbound"
 	"snailmail/internal/store"
 
 	"github.com/google/uuid"
@@ -421,6 +422,13 @@ func (app *appState) apiLetters(w http.ResponseWriter, r *http.Request) {
 			&externalAddr,
 			nil,
 		)
+		if err == nil {
+			// Queue for outbound delivery
+			senderAddr := sender.Handle + "@" + app.cfg.MailDomain
+			if err := outbound.Enqueue(r.Context(), app.store, senderAddr, req.Recipient, req.Subject, req.Body, ""); err != nil {
+				log.Printf("Failed to enqueue outbound email: %v", err)
+			}
+		}
 	} else {
 		// For internal emails, use recipient_id
 		envelope, err = app.store.CreateEnvelope(
@@ -458,7 +466,7 @@ func (app *appState) apiLetters(w http.ResponseWriter, r *http.Request) {
 	
 	if isExternal {
 		response["recipient"] = req.Recipient
-		response["message"] = "Letter queued for external delivery via SMTP relay"
+		response["message"] = "Letter queued for external delivery via direct SMTP"
 	}
 
 	writeJSON(w, http.StatusCreated, response)

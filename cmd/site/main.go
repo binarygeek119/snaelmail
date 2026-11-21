@@ -16,6 +16,8 @@ import (
 
 	"snailmail/internal/config"
 	"snailmail/internal/notification"
+	"snailmail/internal/outbound"
+	"snailmail/internal/smtp"
 	"snailmail/internal/store"
 )
 
@@ -77,6 +79,23 @@ func main() {
 		FromName:     "Snaelmail",
 	}
 	app.notifier = notification.NewNotifier(emailConfig, store)
+
+	// Start inbound SMTP server on port 25
+	smtpServer, err := smtp.NewServer(store, "25")
+	if err != nil {
+		log.Printf("warning: could not start SMTP server on port 25: %v", err)
+	} else {
+		go func() {
+			if err := smtpServer.Start(); err != nil {
+				log.Printf("SMTP server error: %v", err)
+			}
+		}()
+	}
+
+	// Start outbound delivery worker
+	deliveryWorker := outbound.NewDeliveryWorker(store, 30*time.Second)
+	go deliveryWorker.Start()
+	defer deliveryWorker.Stop()
 
 	mux := http.NewServeMux()
 
