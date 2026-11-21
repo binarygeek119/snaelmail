@@ -66,7 +66,37 @@ func (app *appState) handleAdminSuspendUser(w http.ResponseWriter, r *http.Reque
 	writeJSON(w, http.StatusOK, map[string]string{"status": "success"})
 }
 
-// handleAdminDeleteUser handles DELETE /api/admin/users/:id
+// handleAdminUnsuspendUser handles POST /api/admin/users/:id/unsuspend
+func (app *appState) handleAdminUnsuspendUser(w http.ResponseWriter, r *http.Request) {
+	_, user := app.requireAdmin(w, r)
+	if user == nil {
+		return
+	}
+
+	userIDStr := r.PathValue("id")
+	userID, err := uuid.Parse(userIDStr)
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid user_id"})
+		return
+	}
+
+	var req struct {
+		Reason string `json:"reason"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid JSON"})
+		return
+	}
+
+	adminService := admin.NewAdminService(app.store, app.store.Pool())
+	err = adminService.UnsuspendUser(r.Context(), userID, user.ID, req.Reason)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]string{"status": "success"})
+}
 func (app *appState) handleAdminDeleteUser(w http.ResponseWriter, r *http.Request) {
 	_, user := app.requireAdmin(w, r)
 	if user == nil {
