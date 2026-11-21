@@ -353,6 +353,24 @@ func (n *Notifier) generateOutForDeliveryEmailBody(envelope *store.Envelope, del
 	return buf.String()
 }
 
+// getUserAddress gets the user's email address
+func (n *Notifier) getUserAddress(userID *uuid.UUID) string {
+	if userID == nil {
+		return "Unknown"
+	}
+	
+	ctx := context.Background()
+	user, err := n.store.GetUserByID(ctx, *userID)
+	if err != nil {
+		return "Unknown"
+	}
+	
+	// Prefer external email if available, otherwise use internal address
+	if user.Email != nil && *user.Email != "" {
+		return *user.Email
+	}
+	return user.Address
+}
 // formatEventType formats the event type for display
 func formatEventType(eventType string) string {
 	switch eventType {
@@ -371,19 +389,64 @@ func formatEventType(eventType string) string {
 	}
 }
 
-// getUserAddress gets the user's email address
-func (n *Notifier) getUserAddress(userID *uuid.UUID) string {
-	if userID == nil {
-		return "Unknown"
+// SendVerificationEmail sends a 6-digit verification code to the user's email
+func (n *Notifier) SendVerificationEmail(ctx context.Context, email, code string) error {
+	subject := "Verify Your Snaelmail Account"
+	body := n.generateVerificationEmailBody(code)
+	return n.sendEmail(email, subject, body)
+}
+
+// generateVerificationEmailBody generates the HTML body for verification emails
+func (n *Notifier) generateVerificationEmailBody(code string) string {
+	tmpl := `
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
+        .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }
+        .code { font-size: 32px; font-weight: bold; color: #667eea; letter-spacing: 8px; text-align: center; margin: 30px 0; padding: 20px; background: white; border-radius: 8px; border: 2px dashed #667eea; }
+        .footer { text-align: center; margin-top: 30px; color: #999; font-size: 12px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🐌 Welcome to Snaelmail!</h1>
+        </div>
+        <div class="content">
+            <p>Thank you for creating a Snaelmail account. To verify your email address, please use the verification code below:</p>
+            
+            <div class="code">{{.Code}}</div>
+            
+            <p>This code will expire in 24 hours. If you did not request this verification, please ignore this email.</p>
+            
+            <p>Once verified, you can start sending letters through our virtual post office network!</p>
+        </div>
+        <div class="footer">
+            <p>This is an automated message from Snaelmail</p>
+        </div>
+    </div>
+</body>
+</html>
+`
+
+	data := struct {
+		Code string
+	}{
+		Code: code,
 	}
-	
-	ctx := context.Background()
-	user, err := n.store.GetUserByID(ctx, *userID)
-	if err != nil {
-		return "Unknown"
+
+	t := template.Must(template.New("email").Parse(tmpl))
+	var buf bytes.Buffer
+	if err := t.Execute(&buf, data); err != nil {
+		return fmt.Sprintf("Verification code: %s", code)
 	}
-	
-	return user.Address
+
+	return buf.String()
 }
 
 // NotificationWorker runs as a background worker to process pending notifications

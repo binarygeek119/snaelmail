@@ -41,13 +41,14 @@ var (
 
 // Allowed email domains for signup
 var allowedEmailDomains = map[string]bool{
-	"gmail.com":    true,
+	"gmail.com":      true,
 	"googlemail.com": true,
-	"outlook.com":  true,
-	"hotmail.com":  true,
-	"live.com":     true,
-	"yahoo.com":    true,
-	"aol.com":      true,
+	"outlook.com":    true,
+	"hotmail.com":    true,
+	"msn.com":        true,
+	"live.com":       true,
+	"yahoo.com":      true,
+	"aol.com":        true,
 }
 
 // ValidateHandle checks a handle against §6 rules.
@@ -165,10 +166,10 @@ func GenerateToken(n int) (string, error) {
 	return hex.EncodeToString(b), nil
 }
 
-// GenerateCode produces an 8-character alphanumeric verification code.
+// GenerateCode produces a 6-digit verification PIN code.
 func GenerateCode() (string, error) {
-	const chars = "abcdefghjkmnpqrstuvwxyz23456789" // no ambiguous chars
-	b := make([]byte, 8)
+	const chars = "0123456789" // numeric PIN
+	b := make([]byte, 6)
 	for i := range b {
 		var buf [1]byte
 		if _, err := rand.Read(buf[:]); err != nil {

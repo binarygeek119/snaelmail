@@ -257,13 +257,13 @@
                 }
                 
                 // Success!
-                successDiv.textContent = 'Account created! Check your email for verification, or proceed to login.';
+                successDiv.innerHTML = 'Account created! A 6-digit verification code has been sent to your email. Check your inbox and enter the code to verify your account.';
                 successDiv.style.display = 'block';
                 
-                // Redirect to login after 2 seconds
+                // Redirect to login after 3 seconds
                 setTimeout(() => {
                     window.location.href = '/login.html';
-                }, 2000);
+                }, 3000);
                 
             } catch (error) {
                 errorDiv.textContent = error.message;
