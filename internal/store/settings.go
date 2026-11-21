@@ -10,21 +10,30 @@ import (
 
 // UserSettings represents user configuration
 type UserSettings struct {
-	UserID                      uuid.UUID `json:"user_id"`
-	AutoAddTracking             bool      `json:"auto_add_tracking"`
-	RequireDeliveryConfirmation bool      `json:"require_delivery_confirmation"`
-	IMAPPasswordHash            *string   `json:"imap_password_hash,omitempty"`
-	IMAPHost                    string    `json:"imap_host"`
-	IMAPPort                    int       `json:"imap_port"`
-	CreatedAt                   time.Time `json:"created_at"`
-	UpdatedAt                   time.Time `json:"updated_at"`
+	UserID                        uuid.UUID `json:"user_id"`
+	AutoAddTracking               bool      `json:"auto_add_tracking"`
+	RequestDeliveryConfirmation   bool      `json:"request_delivery_confirmation"`
+	IMAPEnabled                   bool      `json:"imap_enabled"`
+	IMAPPasswordHash              *string   `json:"imap_password_hash,omitempty"`
+	IMAPPasswordSalt              *string   `json:"imap_password_salt,omitempty"`
+	IMAPHost                      string    `json:"imap_host"`
+	IMAPPort                      int       `json:"imap_port"`
+	Theme                         string    `json:"theme"`
+	DefaultView                   string    `json:"default_view"`
+	NotifyOnDelivery              bool      `json:"notify_on_delivery"`
+	NotifyOnTrackingUpdate        bool      `json:"notify_on_tracking_update"`
+	CreatedAt                     time.Time `json:"created_at"`
+	UpdatedAt                     time.Time `json:"updated_at"`
 }
 
 // GetUserSettings retrieves user settings by user ID
 func (s *Store) GetUserSettings(ctx context.Context, userID uuid.UUID) (*UserSettings, error) {
 	query := `
-		SELECT user_id, auto_add_tracking, require_delivery_confirmation,
-		       imap_password_hash, imap_host, imap_port, created_at, updated_at
+		SELECT user_id, auto_add_tracking, request_delivery_confirmation,
+		       imap_enabled, imap_password_hash, imap_password_salt,
+		       imap_host, imap_port, theme, default_view,
+		       notify_on_delivery, notify_on_tracking_update,
+		       created_at, updated_at
 		FROM user_settings
 		WHERE user_id = $1
 	`
@@ -33,10 +42,16 @@ func (s *Store) GetUserSettings(ctx context.Context, userID uuid.UUID) (*UserSet
 	err := s.pool.QueryRow(ctx, query, userID).Scan(
 		&settings.UserID,
 		&settings.AutoAddTracking,
-		&settings.RequireDeliveryConfirmation,
+		&settings.RequestDeliveryConfirmation,
+		&settings.IMAPEnabled,
 		&settings.IMAPPasswordHash,
+		&settings.IMAPPasswordSalt,
 		&settings.IMAPHost,
 		&settings.IMAPPort,
+		&settings.Theme,
+		&settings.DefaultView,
+		&settings.NotifyOnDelivery,
+		&settings.NotifyOnTrackingUpdate,
 		&settings.CreatedAt,
 		&settings.UpdatedAt,
 	)
@@ -46,9 +61,14 @@ func (s *Store) GetUserSettings(ctx context.Context, userID uuid.UUID) (*UserSet
 		return &UserSettings{
 			UserID:                      userID,
 			AutoAddTracking:             false,
-			RequireDeliveryConfirmation: false,
+			RequestDeliveryConfirmation: false,
+			IMAPEnabled:                 false,
 			IMAPHost:                    "imap.snaelmail.org",
 			IMAPPort:                    993,
+			Theme:                       "light",
+			DefaultView:                 "inbox",
+			NotifyOnDelivery:            true,
+			NotifyOnTrackingUpdate:      true,
 		}, nil
 	}
 
@@ -63,26 +83,41 @@ func (s *Store) GetUserSettings(ctx context.Context, userID uuid.UUID) (*UserSet
 func (s *Store) UpdateUserSettings(ctx context.Context, settings *UserSettings) error {
 	query := `
 		INSERT INTO user_settings (
-			user_id, auto_add_tracking, require_delivery_confirmation,
-			imap_password_hash, imap_host, imap_port, updated_at
+			user_id, auto_add_tracking, request_delivery_confirmation,
+			imap_enabled, imap_password_hash, imap_password_salt,
+			imap_host, imap_port, theme, default_view,
+			notify_on_delivery, notify_on_tracking_update,
+			updated_at
 		)
-		VALUES ($1, $2, $3, $4, $5, $6, $7)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
 		ON CONFLICT (user_id) DO UPDATE SET
 			auto_add_tracking = EXCLUDED.auto_add_tracking,
-			require_delivery_confirmation = EXCLUDED.require_delivery_confirmation,
+			request_delivery_confirmation = EXCLUDED.request_delivery_confirmation,
+			imap_enabled = EXCLUDED.imap_enabled,
 			imap_password_hash = EXCLUDED.imap_password_hash,
+			imap_password_salt = EXCLUDED.imap_password_salt,
 			imap_host = EXCLUDED.imap_host,
 			imap_port = EXCLUDED.imap_port,
+			theme = EXCLUDED.theme,
+			default_view = EXCLUDED.default_view,
+			notify_on_delivery = EXCLUDED.notify_on_delivery,
+			notify_on_tracking_update = EXCLUDED.notify_on_tracking_update,
 			updated_at = EXCLUDED.updated_at
 	`
 
 	_, err := s.pool.Exec(ctx, query,
 		settings.UserID,
 		settings.AutoAddTracking,
-		settings.RequireDeliveryConfirmation,
+		settings.RequestDeliveryConfirmation,
+		settings.IMAPEnabled,
 		settings.IMAPPasswordHash,
+		settings.IMAPPasswordSalt,
 		settings.IMAPHost,
 		settings.IMAPPort,
+		settings.Theme,
+		settings.DefaultView,
+		settings.NotifyOnDelivery,
+		settings.NotifyOnTrackingUpdate,
 		time.Now(),
 	)
 

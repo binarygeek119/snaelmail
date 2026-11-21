@@ -261,7 +261,7 @@
                 if (response.ok) {
                     const settings = await response.json();
                     document.getElementById('autoAddTracking').checked = settings.auto_add_tracking || false;
-                    document.getElementById('requireDeliveryConfirmation').checked = settings.require_delivery_confirmation || false;
+                    document.getElementById('requireDeliveryConfirmation').checked = settings.request_delivery_confirmation || false;
                     if (settings.imap_host) {
                         document.getElementById('imapHost').value = settings.imap_host;
                     }
@@ -362,7 +362,7 @@
             
             const settings = {
                 auto_add_tracking: document.getElementById('autoAddTracking').checked,
-                require_delivery_confirmation: document.getElementById('requireDeliveryConfirmation').checked,
+                request_delivery_confirmation: document.getElementById('requireDeliveryConfirmation').checked,
                 imap_password: document.getElementById('imapPassword').value,
                 imap_host: document.getElementById('imapHost').value,
                 imap_port: parseInt(document.getElementById('imapPort').value)

@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
 
 	"snailmail/internal/auth"
@@ -44,9 +45,24 @@ func (app *appState) handleUpdateSettings(w http.ResponseWriter, r *http.Request
 	// Set user ID from authenticated user
 	req.UserID = user.ID
 
+	// Set defaults for empty fields
+	if req.Theme == "" {
+		req.Theme = "light"
+	}
+	if req.DefaultView == "" {
+		req.DefaultView = "inbox"
+	}
+	if req.IMAPHost == "" {
+		req.IMAPHost = "imap.snaelmail.org"
+	}
+	if req.IMAPPort == 0 {
+		req.IMAPPort = 993
+	}
+
 	// Update settings
 	if err := app.store.UpdateUserSettings(r.Context(), &req); err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to update settings"})
+		log.Printf("settings update error: %v", err)
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to update settings: " + err.Error()})
 		return
 	}
 

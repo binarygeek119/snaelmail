@@ -10,6 +10,8 @@ CREATE TABLE IF NOT EXISTS user_settings (
   imap_enabled boolean NOT NULL DEFAULT false,
   imap_password_hash text,
   imap_password_salt text,
+  imap_host text NOT NULL DEFAULT 'imap.snaelmail.org',
+  imap_port integer NOT NULL DEFAULT 993,
   
   -- Display preferences
   theme text NOT NULL DEFAULT 'light' CHECK (theme IN ('light', 'dark', 'auto')),
