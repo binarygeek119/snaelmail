@@ -114,9 +114,6 @@ func (app *appState) apiPublishPage(w http.ResponseWriter, r *http.Request, rela
 	}
 
 	status := "live"
-	if reviewClean < 2 {
-		status = "review"
-	}
 
 	// Store in database
 	p, err := app.store.CreatePage(r.Context(), relayID, req.Manifest, sig, status)
