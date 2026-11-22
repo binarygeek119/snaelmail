@@ -107,9 +107,9 @@ const pageTemplate = `<!DOCTYPE html>
     .hero-nav:hover { background: rgba(15,23,42,.75); }
     .hero-prev { left: 12px; }
     .hero-next { right: 12px; }
-    .hero-text { margin-top:.6rem; color:#1e293b; }
-    .hero-text .name { font-weight:700; font-size:1rem; }
-    .hero-text .info { font-size:.9rem; color:#334155; margin-top:.15rem; }
+    .hero-caption { position:absolute; left:0; right:0; bottom:0; background:linear-gradient(to top, rgba(0,0,0,.62), rgba(0,0,0,.18) 70%, rgba(0,0,0,0)); color:#fff; padding:1rem .9rem .65rem; }
+    .hero-caption .name { font-weight:700; font-size:1rem; line-height:1.2; text-shadow:0 1px 2px rgba(0,0,0,.35); }
+    .hero-caption .info { font-size:.9rem; opacity:.95; margin-top:.2rem; text-shadow:0 1px 2px rgba(0,0,0,.35); }
     .hero-dots { display:flex; gap:.4rem; justify-content:center; margin-top:.6rem; }
     .hero-dot { width:10px; height:10px; border-radius:999px; border:0; background:#94a3b8; cursor:pointer; }
     .hero-dot.active { background:#334155; }
@@ -182,10 +182,10 @@ const pageTemplate = `<!DOCTYPE html>
       <button class="hero-nav hero-prev" type="button" aria-label="Previous image" onclick="galleryNav(-1)">&#8249;</button>
       <button class="hero-nav hero-next" type="button" aria-label="Next image" onclick="galleryNav(1)">&#8250;</button>
       {{end}}
-    </div>
-    <div class="hero-text" id="heroText">
-      <div class="name" id="heroName">{{with (index .Manifest.Photos 0).Name}}{{.}}{{else}}{{(index .Manifest.Photos 0).Caption}}{{end}}</div>
-      <div class="info" id="heroInfo">{{with (index .Manifest.Photos 0).Info}}{{.}}{{end}}</div>
+      <div class="hero-caption" id="heroText">
+        <div class="name" id="heroName">{{with (index .Manifest.Photos 0).Name}}{{.}}{{else}}{{(index .Manifest.Photos 0).Caption}}{{end}}</div>
+        <div class="info" id="heroInfo">{{with (index .Manifest.Photos 0).Info}}{{.}}{{end}}</div>
+      </div>
     </div>
     {{if gt (len .Manifest.Photos) 1}}
     <div class="hero-dots" id="heroDots">
