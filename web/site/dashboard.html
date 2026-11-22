@@ -263,6 +263,7 @@
             <span class="user-handle" id="userEmail">user@snaelmail.org</span>
             <button class="btn" onclick="openSettings()" style="background: #e0e0e0;">⚙️ Settings</button>
             <button class="btn" id="postmasterBtn" onclick="openPostmaster()" style="background:#667eea;color:white;display:none;">📮 Postmaster</button>
+            <button class="btn" id="modBtn" onclick="openMod()" style="background:#0ea5e9;color:white;display:none;">🛡️ Mod Panel</button>
             <button class="btn" id="adminBtn" onclick="openAdmin()" style="background: #ffa500; display: none;">🔧 Admin Panel</button>
             <button class="btn btn-logout" onclick="logout()">Log Out</button>
         </div>
@@ -366,6 +367,10 @@
                     if (userData.is_admin) {
                         document.getElementById('adminBtn').style.display = 'inline-block';
                         document.getElementById('postmasterBtn').style.display = 'inline-block';
+                        document.getElementById('modBtn').style.display = 'inline-block';
+                    }
+                    if (userData.is_mod) {
+                        document.getElementById('modBtn').style.display = 'inline-block';
                     }
                 }
             } catch (error) {
@@ -400,6 +405,9 @@
         }
         function openPostmaster() {
             window.location.href = '/postmaster.html';
+        }
+        function openMod() {
+            window.location.href = '/mod.html';
         }
         
         // Tab switching

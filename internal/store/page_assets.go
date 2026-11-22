@@ -94,3 +94,8 @@ func (s *Store) GetPageAssetByID(ctx context.Context, assetID uuid.UUID) (*PageA
 	}
 	return &a, data, nil
 }
+
+func (s *Store) DeletePageAsset(ctx context.Context, relayID uuid.UUID, filename string) error {
+	_, err := s.pool.Exec(ctx, `DELETE FROM page_assets WHERE relay_id=$1 AND filename=$2`, relayID, filename)
+	return err
+}

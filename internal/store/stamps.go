@@ -125,6 +125,7 @@ func (s *Store) ApproveStampVersion(ctx context.Context, id, reviewer uuid.UUID,
 		if _, err := tx.Exec(ctx, `UPDATE stamp_versions SET is_current=true, status='approved' WHERE id=$1`, id); err != nil { return err }
 		// update relay cached stamp
 		svgStr := ""; if svg != nil { svgStr = *svg }
+		if png == nil { png = []byte{} }
 		var hash [32]byte
 		if format == "svg" { hash = sha256.Sum256([]byte(svgStr)) } else { hash = sha256.Sum256(png) }
 		if _, err := tx.Exec(ctx, `UPDATE relays SET stamp_svg=$2, stamp_png=$3, stamp_sha256=$4 WHERE id=$1`, relayID, svgStr, png, hash[:]); err != nil { return err }
@@ -151,6 +152,7 @@ func (s *Store) SetCurrentStampVersion(ctx context.Context, relayID, stampID uui
 	if _, err := tx.Exec(ctx, `UPDATE stamp_versions SET is_current=false, status=CASE WHEN status='approved' THEN 'retired' ELSE status END WHERE relay_id=$1 AND is_current=true`, relayID); err != nil { return err }
 	if _, err := tx.Exec(ctx, `UPDATE stamp_versions SET is_current=true, status='approved' WHERE id=$1`, stampID); err != nil { return err }
 	svgStr := ""; if svg != nil { svgStr = *svg }
+	if png == nil { png = []byte{} }
 	var hash [32]byte
 	if format == "svg" { hash = sha256.Sum256([]byte(svgStr)) } else { hash = sha256.Sum256(png) }
 	if _, err := tx.Exec(ctx, `UPDATE relays SET stamp_svg=$2, stamp_png=$3, stamp_sha256=$4 WHERE id=$1`, relayID, svgStr, png, hash[:]); err != nil { return err }

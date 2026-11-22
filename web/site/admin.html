@@ -335,6 +335,10 @@
                         <label style="display:block;margin:.75rem 0 .25rem;font-weight:600;">City Map (optional)</label>
                         <div id="centralMapPreview" style="margin:.5rem 0;"></div>
                         <input id="centralMap" type="file" accept="image/*" style="width:100%;">
+                        <div style="display:flex;gap:.5rem;margin-top:.5rem;">
+                            <button class="btn" type="button" onclick="uploadCentralMap()">Upload Map</button>
+                            <span id="centralMapMsg" style="color:#555;"></span>
+                        </div>
 
                         <label style="display:block;margin:.75rem 0 .25rem;font-weight:600;">Post Office Stamp (SVG or PNG)</label>
                         <input id="centralStamp" type="file" accept=".svg,image/svg+xml,image/png" style="width:100%;">
@@ -917,6 +921,14 @@
             if (!files.length) { msg.style.color = '#b91c1c'; msg.textContent = 'Choose image files first.'; return; }
             await saveCentralPage();
         }
+        async function uploadCentralMap() {
+            const f = (document.getElementById('centralMap').files || [])[0];
+            const msg = document.getElementById('centralMapMsg');
+            if (!f) { msg.style.color = '#b91c1c'; msg.textContent = 'Choose a map image first.'; return; }
+            msg.style.color = '#555'; msg.textContent = 'Uploading...';
+            await saveCentralPage();
+            msg.style.color = '#16a34a'; msg.textContent = 'Map saved.';
+        }
 
         async function saveCentralPage() {
             if (!centralRelayCache) { alert('Central relay not loaded'); return; }
@@ -1045,9 +1057,10 @@
                 const tbody = document.getElementById('stampsBody');
                 tbody.innerHTML = '';
                 (data.stamps || []).forEach(s => {
-                    const preview = s.format === 'svg' && s.svg_content
-                        ? `<div style="width:80px;height:80px;display:flex;align-items:center;justify-content:center;">${s.svg_content}</div>`
-                        : (s.png_base64 ? `<img src="data:image/png;base64,${s.png_base64}" style="width:80px;height:80px;object-fit:contain;">` : '—');
+                    const inner = s.format === 'svg' && s.svg_content
+                        ? s.svg_content
+                        : (s.png_base64 ? `<img src="data:image/png;base64,${s.png_base64}">` : '—');
+                    const preview = inner==='—' ? '—' : `<div class="stamp-preview">${inner}<div class="stamp-pop">${inner}</div></div>`;
                     const info = [s.event ? `<div><strong>Event:</strong> ${escapeHtml(s.event)}</div>` : '', s.honor ? `<div><strong>Honor:</strong> ${escapeHtml(s.honor)}</div>` : '', s.info ? `<div><strong>Info:</strong> ${escapeHtml(s.info)}</div>` : ''].filter(Boolean).join('') || '<span style="color:#999">—</span>';
                     const tr = document.createElement('tr');
                     tr.innerHTML = `<td>${escapeHtml(s.relay_hostname||'')}</td><td>v${s.version_num}<div style="color:#888;font-size:.75rem;">${(s.sha256||'').slice(0,12)}</div></td><td>${preview}</td><td style="font-size:.85rem;">${info}</td><td>${s.stamp_date ? new Date(s.stamp_date).toLocaleDateString() : ''}</td><td><span class="status-badge status-${s.status}">${s.status}</span>${s.is_current?' <span style="font-size:.75rem;color:#667eea;">(current)</span>':''}</td><td>${s.status==='pending'?`<button class="action-btn" style="background:#22c55e;color:white;" onclick="approveStamp('${s.id}',true)">Approve+Current</button> <button class="action-btn" style="background:#16a34a;color:white;" onclick="approveStamp('${s.id}',false)">Approve</button> <button class="action-btn suspend" onclick="rejectStamp('${s.id}')">Reject</button>`:'—'}</td>`;

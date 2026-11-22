@@ -28,6 +28,7 @@ type User struct {
 	QuotaDay           time.Time
 	CreatedAt          time.Time
 	IsAdmin            bool
+	IsMod              bool
 	City               *string
 	State              *string
 	Country            *string
@@ -57,11 +58,11 @@ func (s *Store) GetUserByID(ctx context.Context, id uuid.UUID) (*User, error) {
 	var u User
 	err := s.pool.QueryRow(ctx, `
 		SELECT id, handle, address, email, pass_hash, display_name, home_relay_id,
-		       home_relay_changed_at, status, storage_bytes, letters_today, quota_day, created_at, is_admin, city, state, country
+		       home_relay_changed_at, status, storage_bytes, letters_today, quota_day, created_at, is_admin, is_mod, city, state, country
 		FROM users WHERE id = $1
 	`, id).Scan(
 		&u.ID, &u.Handle, &u.Address, &u.Email, &u.PassHash, &u.DisplayName, &u.HomeRelayID,
-		&u.HomeRelayChangedAt, &u.Status, &u.StorageBytes, &u.LettersToday, &u.QuotaDay, &u.CreatedAt, &u.IsAdmin, &u.City, &u.State, &u.Country,
+		&u.HomeRelayChangedAt, &u.Status, &u.StorageBytes, &u.LettersToday, &u.QuotaDay, &u.CreatedAt, &u.IsAdmin, &u.IsMod, &u.City, &u.State, &u.Country,
 	)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, nil
@@ -96,11 +97,11 @@ func (s *Store) GetUserByHandle(ctx context.Context, handle string) (*User, erro
 	var u User
 	err := s.pool.QueryRow(ctx, `
 		SELECT id, handle, address, email, pass_hash, display_name, home_relay_id,
-		       home_relay_changed_at, status, storage_bytes, letters_today, quota_day, created_at, is_admin, city, state, country
+		       home_relay_changed_at, status, storage_bytes, letters_today, quota_day, created_at, is_admin, is_mod, city, state, country
 		FROM users WHERE handle = $1
 	`, handle).Scan(
 		&u.ID, &u.Handle, &u.Address, &u.Email, &u.PassHash, &u.DisplayName, &u.HomeRelayID,
-		&u.HomeRelayChangedAt, &u.Status, &u.StorageBytes, &u.LettersToday, &u.QuotaDay, &u.CreatedAt, &u.IsAdmin, &u.City, &u.State, &u.Country,
+		&u.HomeRelayChangedAt, &u.Status, &u.StorageBytes, &u.LettersToday, &u.QuotaDay, &u.CreatedAt, &u.IsAdmin, &u.IsMod, &u.City, &u.State, &u.Country,
 	)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, nil
@@ -116,11 +117,11 @@ func (s *Store) GetUserByAddress(ctx context.Context, address string) (*User, er
 	var u User
 	err := s.pool.QueryRow(ctx, `
 		SELECT id, handle, address, email, pass_hash, display_name, home_relay_id,
-		       home_relay_changed_at, status, storage_bytes, letters_today, quota_day, created_at, is_admin, city, state, country
+		       home_relay_changed_at, status, storage_bytes, letters_today, quota_day, created_at, is_admin, is_mod, city, state, country
 		FROM users WHERE address = $1
 	`, address).Scan(
 		&u.ID, &u.Handle, &u.Address, &u.Email, &u.PassHash, &u.DisplayName, &u.HomeRelayID,
-		&u.HomeRelayChangedAt, &u.Status, &u.StorageBytes, &u.LettersToday, &u.QuotaDay, &u.CreatedAt, &u.IsAdmin, &u.City, &u.State, &u.Country,
+		&u.HomeRelayChangedAt, &u.Status, &u.StorageBytes, &u.LettersToday, &u.QuotaDay, &u.CreatedAt, &u.IsAdmin, &u.IsMod, &u.City, &u.State, &u.Country,
 	)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, nil
@@ -136,11 +137,11 @@ func (s *Store) GetUserByEmail(ctx context.Context, email string) (*User, error)
 	var u User
 	err := s.pool.QueryRow(ctx, `
 		SELECT id, handle, address, email, pass_hash, display_name, home_relay_id,
-		       home_relay_changed_at, status, storage_bytes, letters_today, quota_day, created_at, is_admin, city, state, country
+		       home_relay_changed_at, status, storage_bytes, letters_today, quota_day, created_at, is_admin, is_mod, city, state, country
 		FROM users WHERE email = $1
 	`, email).Scan(
 		&u.ID, &u.Handle, &u.Address, &u.Email, &u.PassHash, &u.DisplayName, &u.HomeRelayID,
-		&u.HomeRelayChangedAt, &u.Status, &u.StorageBytes, &u.LettersToday, &u.QuotaDay, &u.CreatedAt, &u.IsAdmin, &u.City, &u.State, &u.Country,
+		&u.HomeRelayChangedAt, &u.Status, &u.StorageBytes, &u.LettersToday, &u.QuotaDay, &u.CreatedAt, &u.IsAdmin, &u.IsMod, &u.City, &u.State, &u.Country,
 	)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, nil
@@ -456,11 +457,11 @@ func (s *Store) GetUserByAPIKey(ctx context.Context, handle, apiKey string) (*Us
 	var u User
 	err := s.pool.QueryRow(ctx, `
 		SELECT id, handle, address, email, pass_hash, display_name, home_relay_id,
-		       home_relay_changed_at, status, storage_bytes, letters_today, quota_day, created_at, is_admin, city, state, country
+		       home_relay_changed_at, status, storage_bytes, letters_today, quota_day, created_at, is_admin, is_mod, city, state, country
 		FROM users WHERE handle = $1 AND api_key = $2
 	`, handle, apiKey).Scan(
 		&u.ID, &u.Handle, &u.Address, &u.Email, &u.PassHash, &u.DisplayName, &u.HomeRelayID,
-		&u.HomeRelayChangedAt, &u.Status, &u.StorageBytes, &u.LettersToday, &u.QuotaDay, &u.CreatedAt, &u.IsAdmin, &u.City, &u.State, &u.Country,
+		&u.HomeRelayChangedAt, &u.Status, &u.StorageBytes, &u.LettersToday, &u.QuotaDay, &u.CreatedAt, &u.IsAdmin, &u.IsMod, &u.City, &u.State, &u.Country,
 	)
 	if errors.Is(err, pgx.ErrNoRows) { return nil, nil }
 	if err != nil { return nil, err }

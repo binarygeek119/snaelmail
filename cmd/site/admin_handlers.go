@@ -50,6 +50,18 @@ func (app *appState) requireAdmin(w http.ResponseWriter, r *http.Request) (*stor
 	return session, user
 }
 
+func (app *appState) requireModOrAdmin(w http.ResponseWriter, r *http.Request) (*store.Session, *store.User) {
+	session, user := app.validateSession(w, r)
+	if session == nil || user == nil {
+		return nil, nil
+	}
+	if !user.IsAdmin && !user.IsMod {
+		writeJSON(w, http.StatusForbidden, map[string]string{"error": "moderator access required"})
+		return nil, nil
+	}
+	return session, user
+}
+
 // handleAdminPanel serves the admin panel page
 func (app *appState) handleAdminPanel(w http.ResponseWriter, r *http.Request) {
 	_, user := app.requireAdmin(w, r)
@@ -138,5 +150,6 @@ func (app *appState) handleUserMe(w http.ResponseWriter, r *http.Request) {
 		"handle":     user.Handle,
 		"address":    user.Address,
 		"is_admin":   user.IsAdmin,
+		"is_mod":     user.IsMod,
 	})
 }

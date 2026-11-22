@@ -441,3 +441,13 @@ func (s *Store) EnsureCentralRelay(ctx context.Context) error {
 	`, uuid.New(), "central.snaelmail.org", []byte(pub), keyFpr[:], "Des Moines", "Iowa", "US", 41.586834, -93.624962, "America/Chicago", stampSVG, []byte{}, stampSHA[:])
 	return err
 }
+
+func (s *Store) SuspendRelayUntil(ctx context.Context, id uuid.UUID, until *time.Time) error {
+	_, err := s.pool.Exec(ctx, `UPDATE relays SET paused=true, suspended_until=$2 WHERE id=$1`, id, until)
+	return err
+}
+
+func (s *Store) UnsuspendRelay(ctx context.Context, id uuid.UUID) error {
+	_, err := s.pool.Exec(ctx, `UPDATE relays SET paused=false, suspended_until=NULL WHERE id=$1`, id)
+	return err
+}

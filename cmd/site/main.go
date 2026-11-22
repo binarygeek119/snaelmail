@@ -188,6 +188,18 @@ func main() {
 	mux.HandleFunc("GET /admin/central", adminPage)
 	mux.HandleFunc("GET /admin/stamps", adminPage)
 	mux.HandleFunc("GET /admin/letters", adminPage)
+	mux.HandleFunc("GET /mod.html", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
+		w.Header().Set("Pragma", "no-cache")
+		w.Header().Set("Expires", "0")
+		http.ServeFile(w, r, "web/site/mod.html")
+	})
+	mux.HandleFunc("GET /mod", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
+		w.Header().Set("Pragma", "no-cache")
+		w.Header().Set("Expires", "0")
+		http.ServeFile(w, r, "web/site/mod.html")
+	})
 	mux.HandleFunc("GET /postmaster.html", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
 		w.Header().Set("Pragma", "no-cache")
@@ -286,6 +298,16 @@ func main() {
 	mux.HandleFunc("GET /api/admin/stamps", app.handleAdminListStamps)
 	mux.HandleFunc("POST /api/admin/stamps/{id}/approve", app.handleAdminApproveStamp)
 	mux.HandleFunc("POST /api/admin/stamps/{id}/reject", app.handleAdminRejectStamp)
+	// Mod panel
+	mux.HandleFunc("GET /api/mod/relays", app.handleModRelays)
+	mux.HandleFunc("POST /api/mod/relays/{id}/approve", app.handleModApproveRelay)
+	mux.HandleFunc("POST /api/mod/relays/{id}/suspend", app.handleModSuspendRelay)
+	mux.HandleFunc("POST /api/mod/relays/{id}/unsuspend", app.handleModUnsuspendRelay)
+	mux.HandleFunc("GET /api/mod/stamps", app.handleModStamps)
+	mux.HandleFunc("POST /api/mod/stamps/{id}/approve", app.handleModApproveStamp)
+	mux.HandleFunc("POST /api/mod/stamps/{id}/reject", app.handleModRejectStamp)
+	mux.HandleFunc("GET /api/mod/relays/{id}/assets", app.handleModRelayAssets)
+	mux.HandleFunc("DELETE /api/mod/relays/{id}/assets/{filename}", app.handleModDeleteAsset)
 	mux.HandleFunc("GET /api/users/me", app.handleUserMe)
 	
 	// Admin user management

@@ -531,7 +531,6 @@ func (app *appState) apiSubmitRelayStamp(w http.ResponseWriter, r *http.Request,
 	if req.StampPNGBase64 != "" { b, err := base64.StdEncoding.DecodeString(req.StampPNGBase64); if err != nil { writeJSON(w,400,map[string]string{"error":"invalid stamp_png_base64"}); return }; png=b; if format=="" { format="png" } }
 	if format == "" { writeJSON(w,400,map[string]string{"error":"no stamp data"}); return }
 	stampDate := time.Now().UTC()
-	if strings.TrimSpace(req.StampDate) != "" { if t, err := time.Parse("2006-01-02", req.StampDate); err == nil { stampDate = t } }
 	clean := func(p *string) *string { if p==nil { return nil }; v:=strings.TrimSpace(*p); if v=="" { return nil }; return &v }
 	sv, err := app.store.CreateStampVersion(r.Context(), relayID, format, svg, png, stampDate, clean(req.Event), clean(req.Honor), clean(req.Info))
 	if err != nil { writeJSON(w,500,map[string]string{"error":err.Error()}); return }
