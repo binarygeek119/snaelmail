@@ -61,8 +61,8 @@ const pageTemplate = `<!DOCTYPE html>
       top: 0; left: 0; right: 0;
       height: min(85vh, 760px);
       background:
-        linear-gradient(to bottom, rgba(147,197,253,0.20) 0%, rgba(147,197,253,0.55) 55%, rgba(147,197,253,0.92) 85%, #93c5fd 100%),
-        url('/open-post-offices/{{.Relay.Hostname}}/images/{{(index .Manifest.Photos 0).Filename}}') center top / cover no-repeat;
+        linear-gradient(to bottom, rgba(147,197,253,0.10) 0%, rgba(147,197,253,0.45) 50%, rgba(147,197,253,0.88) 82%, #93c5fd 100%),
+        url('/open-post-offices/{{.Relay.Hostname}}/images/{{(index .Manifest.Photos 0).Filename}}') center 15% / cover no-repeat;
       z-index: -1;
       pointer-events: none;
     }
