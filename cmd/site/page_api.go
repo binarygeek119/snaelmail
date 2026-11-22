@@ -402,3 +402,26 @@ func (app *appState) apiAdminPageRouter(w http.ResponseWriter, r *http.Request) 
 		writeJSON(w, http.StatusNotFound, map[string]string{"error": "not found"})
 	}
 }
+
+// apiPublicRelayPage handles GET /api/public/post-office/{hostname}/page
+func (app *appState) apiPublicRelayPage(w http.ResponseWriter, r *http.Request) {
+	hostname := r.PathValue("hostname")
+	if hostname == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "missing hostname"})
+		return
+	}
+	relay, err := app.store.GetRelayByHostname(r.Context(), hostname)
+	if err != nil || relay == nil {
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": "not found"})
+		return
+	}
+	p, err := app.store.GetPageByRelayID(r.Context(), relay.ID)
+	if err != nil || p == nil {
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": "page not found"})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"relay": map[string]any{"hostname": relay.Hostname, "city": relay.City, "region": relay.Region, "cc": relay.CC},
+		"page":  p,
+	})
+}
