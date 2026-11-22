@@ -107,9 +107,9 @@ const pageTemplate = `<!DOCTYPE html>
     .hero-nav:hover { background: rgba(15,23,42,.75); }
     .hero-prev { left: 12px; }
     .hero-next { right: 12px; }
-    .hero-caption { position:absolute; left:0; right:0; bottom:0; background:linear-gradient(to top, rgba(0,0,0,.62), rgba(0,0,0,.18) 70%, rgba(0,0,0,0)); color:#fff; padding:1rem .9rem .65rem; }
-    .hero-caption .name { font-weight:700; font-size:1rem; line-height:1.2; text-shadow:0 1px 2px rgba(0,0,0,.35); }
-    .hero-caption .info { font-size:.9rem; opacity:.95; margin-top:.2rem; text-shadow:0 1px 2px rgba(0,0,0,.35); }
+    .hero-caption { position:absolute; left:0; right:0; bottom:0; background:rgba(0,0,0,.55); color:#fff; padding:.75rem .9rem; backdrop-filter: blur(2px); }
+    .hero-caption .name { font-weight:700; font-size:1rem; line-height:1.2; text-shadow:0 1px 2px rgba(0,0,0,.4); }
+    .hero-caption .info { font-size:.9rem; opacity:.95; margin-top:.2rem; text-shadow:0 1px 2px rgba(0,0,0,.4); }
     .hero-dots { display:flex; gap:.4rem; justify-content:center; margin-top:.6rem; }
     .hero-dot { width:10px; height:10px; border-radius:999px; border:0; background:#94a3b8; cursor:pointer; }
     .hero-dot.active { background:#334155; }
@@ -210,6 +210,8 @@ const pageTemplate = `<!DOCTYPE html>
           nameEl.style.display = name ? 'block' : 'none';
           infoEl.textContent = info;
           infoEl.style.display = info ? 'block' : 'none';
+          var capEl = document.getElementById('heroText');
+          capEl.style.display = (name || info) ? 'block' : 'none';
           var dots = document.querySelectorAll('.hero-dot');
           dots.forEach(function(d,i){ d.classList.toggle('active', i===idx); });
         }
