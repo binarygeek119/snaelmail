@@ -671,22 +671,9 @@
             }
         }
         
-        async function viewRelay(hostname) {
-            try {
-                const res = await fetch('/api/admin/post-office-preview/' + encodeURIComponent(hostname), {
-                    headers: { 'Authorization': 'Bearer ' + token }
-                });
-                if (!res.ok) { alert('Failed to load preview'); return; }
-                let html = await res.text();
-                // blob: URLs have null origin, so inject base so relative asset URLs resolve
-                const base = '<base href="' + location.origin + '/">';
-                if (html.includes('<head>')) html = html.replace('<head>', '<head>' + base);
-                else html = base + html;
-                const blob = new Blob([html], {type: 'text/html'});
-                const url = URL.createObjectURL(blob);
-                window.open(url, '_blank');
-                setTimeout(() => URL.revokeObjectURL(url), 60000);
-            } catch (e) { console.error(e); alert('Failed to load preview'); }
+        function viewRelay(hostname) {
+            const url = '/api/admin/post-office-preview/' + encodeURIComponent(hostname) + '?token=' + encodeURIComponent(token);
+            window.open(url, '_blank');
         }
 
         async function activateRelay(id) {

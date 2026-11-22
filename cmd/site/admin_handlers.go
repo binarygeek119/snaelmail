@@ -12,6 +12,9 @@ import (
 func (app *appState) validateSession(w http.ResponseWriter, r *http.Request) (*store.Session, *store.User) {
 	token := strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")
 	if token == "" {
+		token = r.URL.Query().Get("token")
+	}
+	if token == "" {
 		writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "missing authorization token"})
 		return nil, nil
 	}
