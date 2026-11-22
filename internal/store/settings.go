@@ -18,6 +18,11 @@ type UserSettings struct {
 	IMAPPasswordSalt              *string   `json:"imap_password_salt,omitempty"`
 	IMAPHost                      string    `json:"imap_host"`
 	IMAPPort                      int       `json:"imap_port"`
+	POPEnabled                    bool      `json:"pop_enabled"`
+	POPPasswordHash               *string   `json:"pop_password_hash,omitempty"`
+	POPPasswordSalt               *string   `json:"pop_password_salt,omitempty"`
+	POPHost                       string    `json:"pop_host"`
+	POPPort                       int       `json:"pop_port"`
 	Theme                         string    `json:"theme"`
 	DefaultView                   string    `json:"default_view"`
 	NotifyOnDelivery              bool      `json:"notify_on_delivery"`
@@ -31,7 +36,9 @@ func (s *Store) GetUserSettings(ctx context.Context, userID uuid.UUID) (*UserSet
 	query := `
 		SELECT user_id, auto_add_tracking, request_delivery_confirmation,
 		       imap_enabled, imap_password_hash, imap_password_salt,
-		       imap_host, imap_port, theme, default_view,
+		       imap_host, imap_port,
+		       pop_enabled, pop_password_hash, pop_password_salt, pop_host, pop_port,
+		       theme, default_view,
 		       notify_on_delivery, notify_on_tracking_update,
 		       created_at, updated_at
 		FROM user_settings
@@ -48,6 +55,11 @@ func (s *Store) GetUserSettings(ctx context.Context, userID uuid.UUID) (*UserSet
 		&settings.IMAPPasswordSalt,
 		&settings.IMAPHost,
 		&settings.IMAPPort,
+		&settings.POPEnabled,
+		&settings.POPPasswordHash,
+		&settings.POPPasswordSalt,
+		&settings.POPHost,
+		&settings.POPPort,
 		&settings.Theme,
 		&settings.DefaultView,
 		&settings.NotifyOnDelivery,
@@ -65,6 +77,9 @@ func (s *Store) GetUserSettings(ctx context.Context, userID uuid.UUID) (*UserSet
 			IMAPEnabled:                 false,
 			IMAPHost:                    "imap.snaelmail.org",
 			IMAPPort:                    993,
+			POPEnabled:                  false,
+			POPHost:                     "pop.snaelmail.org",
+			POPPort:                     995,
 			Theme:                       "light",
 			DefaultView:                 "inbox",
 			NotifyOnDelivery:            true,
@@ -85,11 +100,13 @@ func (s *Store) UpdateUserSettings(ctx context.Context, settings *UserSettings) 
 		INSERT INTO user_settings (
 			user_id, auto_add_tracking, request_delivery_confirmation,
 			imap_enabled, imap_password_hash, imap_password_salt,
-			imap_host, imap_port, theme, default_view,
+			imap_host, imap_port,
+			pop_enabled, pop_password_hash, pop_password_salt, pop_host, pop_port,
+			theme, default_view,
 			notify_on_delivery, notify_on_tracking_update,
 			updated_at
 		)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)
 		ON CONFLICT (user_id) DO UPDATE SET
 			auto_add_tracking = EXCLUDED.auto_add_tracking,
 			request_delivery_confirmation = EXCLUDED.request_delivery_confirmation,
@@ -98,6 +115,11 @@ func (s *Store) UpdateUserSettings(ctx context.Context, settings *UserSettings) 
 			imap_password_salt = EXCLUDED.imap_password_salt,
 			imap_host = EXCLUDED.imap_host,
 			imap_port = EXCLUDED.imap_port,
+			pop_enabled = EXCLUDED.pop_enabled,
+			pop_password_hash = EXCLUDED.pop_password_hash,
+			pop_password_salt = EXCLUDED.pop_password_salt,
+			pop_host = EXCLUDED.pop_host,
+			pop_port = EXCLUDED.pop_port,
 			theme = EXCLUDED.theme,
 			default_view = EXCLUDED.default_view,
 			notify_on_delivery = EXCLUDED.notify_on_delivery,
@@ -114,6 +136,11 @@ func (s *Store) UpdateUserSettings(ctx context.Context, settings *UserSettings) 
 		settings.IMAPPasswordSalt,
 		settings.IMAPHost,
 		settings.IMAPPort,
+		settings.POPEnabled,
+		settings.POPPasswordHash,
+		settings.POPPasswordSalt,
+		settings.POPHost,
+		settings.POPPort,
 		settings.Theme,
 		settings.DefaultView,
 		settings.NotifyOnDelivery,

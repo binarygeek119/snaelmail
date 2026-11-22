@@ -298,7 +298,22 @@
                     <div class="section">
                         <h3>Central Post Office Information</h3>
                         <div id="centralInfo"></div>
-                        <button class="btn" onclick="editCentralPage()">Edit Public Page</button>
+                    </div>
+                    <div class="section" style="margin-top:1rem;">
+                        <h3>Edit Public Page</h3>
+                        <div id="centralPageMsg" style="margin-bottom:.75rem;color:#555;"></div>
+                        <label style="display:block;margin:.5rem 0 .25rem;font-weight:600;">About</label>
+                        <textarea id="centralAbout" style="width:100%;min-height:120px;padding:.75rem;border:1px solid #ddd;border-radius:8px;"></textarea>
+                        <label style="display:block;margin:.5rem 0 .25rem;font-weight:600;">Postmaster Name</label>
+                        <input id="centralPMName" style="width:100%;padding:.6rem;border:1px solid #ddd;border-radius:8px;">
+                        <label style="display:block;margin:.5rem 0 .25rem;font-weight:600;">Postmaster Role</label>
+                        <input id="centralPMRole" style="width:100%;padding:.6rem;border:1px solid #ddd;border-radius:8px;">
+                        <label style="display:block;margin:.5rem 0 .25rem;font-weight:600;">Postmaster Bio</label>
+                        <textarea id="centralPMBio" style="width:100%;min-height:80px;padding:.75rem;border:1px solid #ddd;border-radius:8px;"></textarea>
+                        <div style="display:flex;gap:.5rem;margin-top:1rem;">
+                            <button class="btn" onclick="saveCentralPage()">Save Page</button>
+                            <a id="centralViewLink" class="btn" href="#" target="_blank" style="text-decoration:none;display:inline-block;">View Page</a>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -650,44 +665,98 @@
             alert('View letter: ' + id);
         }
         
+        let centralRelayCache = null;
+
         // Load central post office
         async function loadCentral() {
+            const loading = document.getElementById('centralLoading');
+            const content = document.getElementById('centralContent');
+            const infoDiv = document.getElementById('centralInfo');
             try {
-                // First, get the central post office ID
-                const response = await fetch('/api/relays/search?city=snaelmail', {
-                    headers: {
-                        'Authorization': 'Bearer ' + token
-                    }
+                const response = await fetch('/api/admin/relays', {
+                    headers: { 'Authorization': 'Bearer ' + token }
                 });
-                
-                if (response.ok) {
-                    const data = await response.json();
-                    if (data.relays && data.relays.length > 0) {
-                        const centralRelay = data.relays.find(r => r.central === true);
-                        if (centralRelay) {
-                            const infoDiv = document.getElementById('centralInfo');
-                            infoDiv.innerHTML = `
-                                <p><strong>Hostname:</strong> ${centralRelay.hostname}</p>
-                                <p><strong>City:</strong> ${centralRelay.city}</p>
-                                <p><strong>Region:</strong> ${centralRelay.region}</p>
-                                <p><strong>Country:</strong> ${centralRelay.cc}</p>
-                                <p><strong>Status:</strong> ${centralRelay.status}</p>
-                                <p><strong>Letters Handled:</strong> ${centralRelay.letters_passed}</p>
-                                <p><strong>Established:</strong> ${new Date(centralRelay.opened_at).toLocaleDateString()}</p>
-                            `;
-                            document.getElementById('centralLoading').style.display = 'none';
-                            document.getElementById('centralContent').style.display = 'block';
-                        }
-                    }
+                if (!response.ok) { loading.textContent = 'Failed to load central post office.'; return; }
+                const data = await response.json();
+                const centralRelay = (data.relays || []).find(r => r.central === true);
+                centralRelayCache = centralRelay;
+                if (!centralRelay) {
+                    loading.style.display = 'none';
+                    content.style.display = 'block';
+                    infoDiv.innerHTML = `<p>No central post office configured.</p>`;
+                    return;
                 }
+                infoDiv.innerHTML = `
+                    <p><strong>Hostname:</strong> ${centralRelay.hostname}</p>
+                    <p><strong>City:</strong> ${centralRelay.city}</p>
+                    <p><strong>Region:</strong> ${centralRelay.region}</p>
+                    <p><strong>Country:</strong> ${centralRelay.cc}</p>
+                    <p><strong>Status:</strong> ${centralRelay.status}</p>
+                    <p><strong>Letters Handled:</strong> ${centralRelay.letters_passed || 0}</p>
+                    <p><strong>Public page:</strong> <a href="/open-post-offices/${encodeURIComponent(centralRelay.hostname)}" target="_blank">/open-post-offices/${centralRelay.hostname}</a></p>
+                `;
+                loading.style.display = 'none';
+                content.style.display = 'block';
+                await loadCentralPageEditor(centralRelay);
             } catch (error) {
                 console.error('Error loading central post office:', error);
+                loading.textContent = 'Error loading central post office.';
             }
         }
         
-        function editCentralPage() {
-            alert('Central post office page editor coming soon!');
-            // TODO: Implement page editor for central post office
+        async function loadCentralPageEditor(relay) {
+            document.getElementById('centralViewLink').href = `/open-post-offices/${encodeURIComponent(relay.hostname)}`;
+            document.getElementById('centralAbout').value = `Welcome to the ${relay.city} post office. This is the central hub of the Snaelmail network, where messages begin their journey across virtual post offices around the world. Our team carefully handles every letter, ensuring it travels through the network with care and collects postmarks along the way.`;
+            document.getElementById('centralPMName').value = 'Postmaster';
+            document.getElementById('centralPMRole').value = 'Central Post Office';
+            document.getElementById('centralPMBio').value = 'Keeping the Snaelmail network moving, one letter at a time.';
+            document.getElementById('centralPageMsg').textContent = 'Edit the public page content and click Save Page.';
+        }
+
+        async function saveCentralPage() {
+            if (!centralRelayCache) { alert('Central relay not loaded'); return; }
+            const msg = document.getElementById('centralPageMsg');
+            msg.textContent = 'Saving...';
+            const about = document.getElementById('centralAbout').value.trim();
+            const manifest = {
+                photos: [],
+                about: about,
+                facts: [
+                    { key: 'City', value: String(centralRelayCache.city || '') },
+                    { key: 'Region', value: String(centralRelayCache.region || '') },
+                    { key: 'Country', value: String(centralRelayCache.cc || '') }
+                ].filter(f => f.value),
+                postmaster: {
+                    name: document.getElementById('centralPMName').value.trim() || 'Postmaster',
+                    role: document.getElementById('centralPMRole').value.trim(),
+                    bio: document.getElementById('centralPMBio').value.trim()
+                },
+                dispatch_times: [],
+                classes: ['standard'],
+                accent: {
+                    primary: '#333333',
+                    secondary: '#667eea',
+                    tertiary: '#764ba2',
+                    highlight: '#f5f3ff',
+                    muted: '#cccccc'
+                }
+            };
+            try {
+                const response = await fetch(`/api/relay/${centralRelayCache.id}/publish`, {
+                    method: 'POST',
+                    headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ manifest, images: [] })
+                });
+                const data = await response.json().catch(() => ({}));
+                if (!response.ok) {
+                    msg.textContent = 'Error: ' + (data.error || response.status);
+                    return;
+                }
+                msg.textContent = 'Page saved. Status: ' + (data.status || 'ok') + (data.revision ? ' (revision ' + data.revision + ')' : '');
+            } catch (e) {
+                console.error(e);
+                msg.textContent = 'Error saving page.';
+            }
         }
         
         // Initialize

@@ -172,6 +172,23 @@
             
             <form id="settingsForm">
                 <div class="settings-section">
+                    <h2>📍 Location</h2>
+                    <p class="setting-description" style="margin-bottom:1rem;">Your location is used to calculate delivery time for letters.</p>
+                    <div class="setting-item">
+                        <label for="city">City</label>
+                        <input type="text" id="city" name="city">
+                    </div>
+                    <div class="setting-item">
+                        <label for="state">State / Province</label>
+                        <input type="text" id="state" name="state">
+                    </div>
+                    <div class="setting-item">
+                        <label for="country">Country</label>
+                        <input type="text" id="country" name="country">
+                    </div>
+                </div>
+
+                <div class="settings-section">
                     <h2>📬 Letter Defaults</h2>
                     
                     <div class="setting-item">
@@ -209,6 +226,34 @@
                     <div class="setting-item">
                         <label for="imapPort">IMAP Port</label>
                         <input type="text" id="imapPort" name="imapPort" value="993" readonly>
+                    </div>
+                </div>
+
+                <div class="settings-section">
+                    <h2>📮 POP3 Settings</h2>
+                    <p class="setting-description" style="margin-bottom: 1rem;">Configure your email client to download mail via POP3</p>
+
+                    <div class="setting-item">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="popEnabled" name="popEnabled">
+                            <span>Enable POP3 access</span>
+                        </label>
+                    </div>
+
+                    <div class="setting-item">
+                        <label for="popPassword">POP3 Password</label>
+                        <input type="password" id="popPassword" name="popPassword" placeholder="Enter POP3 password">
+                        <p class="setting-description">This password is used for POP3 client access</p>
+                    </div>
+
+                    <div class="setting-item">
+                        <label for="popHost">POP3 Server</label>
+                        <input type="text" id="popHost" name="popHost" value="pop.snaelmail.org" readonly>
+                    </div>
+
+                    <div class="setting-item">
+                        <label for="popPort">POP3 Port</label>
+                        <input type="text" id="popPort" name="popPort" value="995" readonly>
                     </div>
                 </div>
                 
@@ -259,15 +304,22 @@
                 });
                 
                 if (response.ok) {
-                    const settings = await response.json();
+                    const data = await response.json();
+                    const settings = data.settings || data;
                     document.getElementById('autoAddTracking').checked = settings.auto_add_tracking || false;
                     document.getElementById('requireDeliveryConfirmation').checked = settings.request_delivery_confirmation || false;
+                    if (data.city !== undefined) document.getElementById('city').value = data.city || '';
+                    if (data.state !== undefined) document.getElementById('state').value = data.state || '';
+                    if (data.country !== undefined) document.getElementById('country').value = data.country || '';
                     if (settings.imap_host) {
                         document.getElementById('imapHost').value = settings.imap_host;
                     }
                     if (settings.imap_port) {
                         document.getElementById('imapPort').value = settings.imap_port;
                     }
+                    document.getElementById('popEnabled').checked = settings.pop_enabled || false;
+                    if (settings.pop_host) document.getElementById('popHost').value = settings.pop_host;
+                    if (settings.pop_port) document.getElementById('popPort').value = settings.pop_port;
                 }
             } catch (error) {
                 console.error('Error loading settings:', error);
@@ -365,7 +417,14 @@
                 request_delivery_confirmation: document.getElementById('requireDeliveryConfirmation').checked,
                 imap_password: document.getElementById('imapPassword').value,
                 imap_host: document.getElementById('imapHost').value,
-                imap_port: parseInt(document.getElementById('imapPort').value)
+                imap_port: parseInt(document.getElementById('imapPort').value),
+                pop_enabled: document.getElementById('popEnabled').checked,
+                pop_password: document.getElementById('popPassword').value,
+                pop_host: document.getElementById('popHost').value,
+                pop_port: parseInt(document.getElementById('popPort').value),
+                city: document.getElementById('city').value,
+                state: document.getElementById('state').value,
+                country: document.getElementById('country').value
             };
             
             try {
@@ -388,8 +447,9 @@
                 alertDiv.textContent = 'Settings saved successfully!';
                 alertDiv.style.display = 'block';
                 
-                // Clear password field
+                // Clear password fields
                 document.getElementById('imapPassword').value = '';
+                document.getElementById('popPassword').value = '';
                 
                 setTimeout(() => {
                     alertDiv.style.display = 'none';

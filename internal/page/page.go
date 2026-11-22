@@ -99,9 +99,9 @@ type Page struct {
 
 // Validate checks the manifest against §14 limits.
 func Validate(m *Manifest) error {
-	// Photos: 1-6 required
-	if len(m.Photos) < 1 || len(m.Photos) > 6 {
-		return errors.New("photos: must be 1-6 images")
+	// Photos: 0-6 allowed
+	if len(m.Photos) > 6 {
+		return errors.New("photos: must be 0-6 images")
 	}
 	for i, p := range m.Photos {
 		if len(p.Caption) > 120 {

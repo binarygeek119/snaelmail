@@ -187,6 +187,21 @@
                     <label for="confirmEmail">Confirm Email</label>
                     <input type="email" id="confirmEmail" name="confirmEmail" required>
                 </div>
+
+                <div class="form-group">
+                    <label for="city">City</label>
+                    <input type="text" id="city" name="city" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="state">State / Province</label>
+                    <input type="text" id="state" name="state" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="country">Country</label>
+                    <input type="text" id="country" name="country" required>
+                </div>
                 
                 <div class="form-group">
                     <label for="password">Password</label>
@@ -223,6 +238,9 @@
             const handle = document.getElementById('handle').value;
             const email = document.getElementById('email').value;
             const confirmEmail = document.getElementById('confirmEmail').value;
+            const city = document.getElementById('city').value;
+            const state = document.getElementById('state').value;
+            const country = document.getElementById('country').value;
             const password = document.getElementById('password').value;
             const displayName = document.getElementById('displayName').value;
             
@@ -246,7 +264,10 @@
                         handle: handle,
                         email: email,
                         password: password,
-                        display_name: displayName || undefined
+                        display_name: displayName || undefined,
+                        city: city || undefined,
+                        state: state || undefined,
+                        country: country || undefined
                     })
                 });
                 

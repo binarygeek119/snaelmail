@@ -14,34 +14,37 @@ import (
 
 // User represents a registered user.
 type User struct {
-	ID                uuid.UUID
-	Handle            string
-	Address           string
-	Email             *string
-	PassHash          string
-	DisplayName       *string
-	HomeRelayID       *uuid.UUID
+	ID                 uuid.UUID
+	Handle             string
+	Address            string
+	Email              *string
+	PassHash           string
+	DisplayName        *string
+	HomeRelayID        *uuid.UUID
 	HomeRelayChangedAt *time.Time
-	Status            string
-	StorageBytes      int64
-	LettersToday      int
-	QuotaDay          time.Time
-	CreatedAt         time.Time
-	IsAdmin           bool
+	Status             string
+	StorageBytes       int64
+	LettersToday       int
+	QuotaDay           time.Time
+	CreatedAt          time.Time
+	IsAdmin            bool
+	City               *string
+	State              *string
+	Country            *string
 }
 
 // CreateUser inserts a new user. Returns the created user with generated fields.
-func (s *Store) CreateUser(ctx context.Context, handle, address, passHash string, email *string, displayName *string, homeRelayID *uuid.UUID) (*User, error) {
+func (s *Store) CreateUser(ctx context.Context, handle, address, passHash string, email *string, displayName *string, homeRelayID *uuid.UUID, city, state, country *string) (*User, error) {
 	id := uuid.New()
 	var u User
 	err := s.pool.QueryRow(ctx, `
-		INSERT INTO users (id, handle, address, email, pass_hash, display_name, home_relay_id, status)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, 'unverified')
+		INSERT INTO users (id, handle, address, email, pass_hash, display_name, home_relay_id, status, city, state, country)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, 'unverified', $8, $9, $10)
 		RETURNING id, handle, address, email, pass_hash, display_name, home_relay_id,
-		          home_relay_changed_at, status, storage_bytes, letters_today, quota_day, created_at
-	`, id, handle, address, email, passHash, displayName, homeRelayID).Scan(
+		          home_relay_changed_at, status, storage_bytes, letters_today, quota_day, created_at, city, state, country
+	`, id, handle, address, email, passHash, displayName, homeRelayID, city, state, country).Scan(
 		&u.ID, &u.Handle, &u.Address, &u.Email, &u.PassHash, &u.DisplayName, &u.HomeRelayID,
-		&u.HomeRelayChangedAt, &u.Status, &u.StorageBytes, &u.LettersToday, &u.QuotaDay, &u.CreatedAt,
+		&u.HomeRelayChangedAt, &u.Status, &u.StorageBytes, &u.LettersToday, &u.QuotaDay, &u.CreatedAt, &u.City, &u.State, &u.Country,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("create user: %w", err)
@@ -54,11 +57,11 @@ func (s *Store) GetUserByID(ctx context.Context, id uuid.UUID) (*User, error) {
 	var u User
 	err := s.pool.QueryRow(ctx, `
 		SELECT id, handle, address, email, pass_hash, display_name, home_relay_id,
-		       home_relay_changed_at, status, storage_bytes, letters_today, quota_day, created_at, is_admin
+		       home_relay_changed_at, status, storage_bytes, letters_today, quota_day, created_at, is_admin, city, state, country
 		FROM users WHERE id = $1
 	`, id).Scan(
 		&u.ID, &u.Handle, &u.Address, &u.Email, &u.PassHash, &u.DisplayName, &u.HomeRelayID,
-		&u.HomeRelayChangedAt, &u.Status, &u.StorageBytes, &u.LettersToday, &u.QuotaDay, &u.CreatedAt, &u.IsAdmin,
+		&u.HomeRelayChangedAt, &u.Status, &u.StorageBytes, &u.LettersToday, &u.QuotaDay, &u.CreatedAt, &u.IsAdmin, &u.City, &u.State, &u.Country,
 	)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, nil
@@ -93,11 +96,11 @@ func (s *Store) GetUserByHandle(ctx context.Context, handle string) (*User, erro
 	var u User
 	err := s.pool.QueryRow(ctx, `
 		SELECT id, handle, address, email, pass_hash, display_name, home_relay_id,
-		       home_relay_changed_at, status, storage_bytes, letters_today, quota_day, created_at, is_admin
+		       home_relay_changed_at, status, storage_bytes, letters_today, quota_day, created_at, is_admin, city, state, country
 		FROM users WHERE handle = $1
 	`, handle).Scan(
 		&u.ID, &u.Handle, &u.Address, &u.Email, &u.PassHash, &u.DisplayName, &u.HomeRelayID,
-		&u.HomeRelayChangedAt, &u.Status, &u.StorageBytes, &u.LettersToday, &u.QuotaDay, &u.CreatedAt, &u.IsAdmin,
+		&u.HomeRelayChangedAt, &u.Status, &u.StorageBytes, &u.LettersToday, &u.QuotaDay, &u.CreatedAt, &u.IsAdmin, &u.City, &u.State, &u.Country,
 	)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, nil
@@ -113,11 +116,11 @@ func (s *Store) GetUserByAddress(ctx context.Context, address string) (*User, er
 	var u User
 	err := s.pool.QueryRow(ctx, `
 		SELECT id, handle, address, email, pass_hash, display_name, home_relay_id,
-		       home_relay_changed_at, status, storage_bytes, letters_today, quota_day, created_at, is_admin
+		       home_relay_changed_at, status, storage_bytes, letters_today, quota_day, created_at, is_admin, city, state, country
 		FROM users WHERE address = $1
 	`, address).Scan(
 		&u.ID, &u.Handle, &u.Address, &u.Email, &u.PassHash, &u.DisplayName, &u.HomeRelayID,
-		&u.HomeRelayChangedAt, &u.Status, &u.StorageBytes, &u.LettersToday, &u.QuotaDay, &u.CreatedAt, &u.IsAdmin,
+		&u.HomeRelayChangedAt, &u.Status, &u.StorageBytes, &u.LettersToday, &u.QuotaDay, &u.CreatedAt, &u.IsAdmin, &u.City, &u.State, &u.Country,
 	)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, nil
@@ -133,11 +136,11 @@ func (s *Store) GetUserByEmail(ctx context.Context, email string) (*User, error)
 	var u User
 	err := s.pool.QueryRow(ctx, `
 		SELECT id, handle, address, email, pass_hash, display_name, home_relay_id,
-		       home_relay_changed_at, status, storage_bytes, letters_today, quota_day, created_at, is_admin
+		       home_relay_changed_at, status, storage_bytes, letters_today, quota_day, created_at, is_admin, city, state, country
 		FROM users WHERE email = $1
 	`, email).Scan(
 		&u.ID, &u.Handle, &u.Address, &u.Email, &u.PassHash, &u.DisplayName, &u.HomeRelayID,
-		&u.HomeRelayChangedAt, &u.Status, &u.StorageBytes, &u.LettersToday, &u.QuotaDay, &u.CreatedAt, &u.IsAdmin,
+		&u.HomeRelayChangedAt, &u.Status, &u.StorageBytes, &u.LettersToday, &u.QuotaDay, &u.CreatedAt, &u.IsAdmin, &u.City, &u.State, &u.Country,
 	)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, nil
@@ -157,6 +160,17 @@ func (s *Store) UpdateUserPassword(ctx context.Context, userID uuid.UUID, newPas
 	`, newPassHash, userID)
 	if err != nil {
 		return fmt.Errorf("failed to update password: %w", err)
+	}
+	return nil
+}
+
+// UpdateUserLocation updates a user's city, state, and country.
+func (s *Store) UpdateUserLocation(ctx context.Context, userID uuid.UUID, city, state, country *string) error {
+	_, err := s.pool.Exec(ctx, `
+		UPDATE users SET city = $1, state = $2, country = $3 WHERE id = $4
+	`, city, state, country, userID)
+	if err != nil {
+		return fmt.Errorf("failed to update location: %w", err)
 	}
 	return nil
 }

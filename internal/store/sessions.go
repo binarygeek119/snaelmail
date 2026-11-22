@@ -75,7 +75,7 @@ func (s *Store) CleanupExpiredSessions(ctx context.Context) error {
 func (s *Store) GetAllUsers(ctx context.Context) ([]User, error) {
 	rows, err := s.pool.Query(ctx, `
 		SELECT id, handle, address, pass_hash, display_name, home_relay_id,
-		       home_relay_changed_at, status, storage_bytes, letters_today, quota_day, created_at, is_admin
+		       home_relay_changed_at, status, storage_bytes, letters_today, quota_day, created_at, is_admin, city, state, country
 		FROM users
 		ORDER BY created_at DESC
 	`)
@@ -89,7 +89,7 @@ func (s *Store) GetAllUsers(ctx context.Context) ([]User, error) {
 		var u User
 		err := rows.Scan(
 			&u.ID, &u.Handle, &u.Address, &u.PassHash, &u.DisplayName, &u.HomeRelayID,
-			&u.HomeRelayChangedAt, &u.Status, &u.StorageBytes, &u.LettersToday, &u.QuotaDay, &u.CreatedAt, &u.IsAdmin,
+			&u.HomeRelayChangedAt, &u.Status, &u.StorageBytes, &u.LettersToday, &u.QuotaDay, &u.CreatedAt, &u.IsAdmin, &u.City, &u.State, &u.Country,
 		)
 		if err != nil {
 			return nil, err

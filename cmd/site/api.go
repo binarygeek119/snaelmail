@@ -23,6 +23,9 @@ func (app *appState) apiSignup(w http.ResponseWriter, r *http.Request) {
 		Email       string     `json:"email"`
 		DisplayName *string    `json:"display_name,omitempty"`
 		HomeRelayID *uuid.UUID `json:"home_relay_id,omitempty"`
+		City        *string    `json:"city,omitempty"`
+		State       *string    `json:"state,omitempty"`
+		Country     *string    `json:"country,omitempty"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid JSON"})
@@ -88,7 +91,7 @@ func (app *appState) apiSignup(w http.ResponseWriter, r *http.Request) {
 
 	// Create user
 	email := req.Email
-	user, err := app.store.CreateUser(r.Context(), req.Handle, address, passHash, &email, req.DisplayName, req.HomeRelayID)
+	user, err := app.store.CreateUser(r.Context(), req.Handle, address, passHash, &email, req.DisplayName, req.HomeRelayID, req.City, req.State, req.Country)
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to create user"})
 		return
@@ -400,7 +403,25 @@ func (app *appState) apiLetters(w http.ResponseWriter, r *http.Request) {
 	sizeBytes := len(req.Body)
 	routeJSON := []byte(`{"hops":[]}`)
 	queuedAt := time.Now()
-	deliverAt := queuedAt.Add(24 * time.Hour) // Placeholder
+	deliveryHours := 24
+	if isExternal {
+		deliveryHours = 48
+	} else if recipient != nil {
+		sameCountry := sender.Country != nil && recipient.Country != nil && strings.EqualFold(*sender.Country, *recipient.Country)
+		sameState := sameCountry && sender.State != nil && recipient.State != nil && strings.EqualFold(*sender.State, *recipient.State)
+		sameCity := sameState && sender.City != nil && recipient.City != nil && strings.EqualFold(*sender.City, *recipient.City)
+		switch {
+		case sameCity:
+			deliveryHours = 12
+		case sameState:
+			deliveryHours = 24
+		case sameCountry:
+			deliveryHours = 36
+		default:
+			deliveryHours = 72
+		}
+	}
+	deliverAt := queuedAt.Add(time.Duration(deliveryHours) * time.Hour)
 
 	var envelope *store.Envelope
 	if isExternal {

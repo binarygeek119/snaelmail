@@ -24,7 +24,12 @@ func (app *appState) handleGetSettings(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, settings)
+	writeJSON(w, http.StatusOK, map[string]any{
+		"settings": settings,
+		"city":     user.City,
+		"state":    user.State,
+		"country":  user.Country,
+	})
 }
 
 // handleUpdateSettings handles PUT /api/settings
@@ -36,14 +41,19 @@ func (app *appState) handleUpdateSettings(w http.ResponseWriter, r *http.Request
 	}
 
 	// Parse request body
-	var req store.UserSettings
+	var req struct {
+		store.UserSettings
+		City    *string `json:"city"`
+		State   *string `json:"state"`
+		Country *string `json:"country"`
+	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid JSON"})
 		return
 	}
 
 	// Set user ID from authenticated user
-	req.UserID = user.ID
+	req.UserSettings.UserID = user.ID
 
 	// Set defaults for empty fields
 	if req.Theme == "" {
@@ -58,11 +68,22 @@ func (app *appState) handleUpdateSettings(w http.ResponseWriter, r *http.Request
 	if req.IMAPPort == 0 {
 		req.IMAPPort = 993
 	}
+	if req.POPHost == "" {
+		req.POPHost = "pop.snaelmail.org"
+	}
+	if req.POPPort == 0 {
+		req.POPPort = 995
+	}
 
 	// Update settings
-	if err := app.store.UpdateUserSettings(r.Context(), &req); err != nil {
+	if err := app.store.UpdateUserSettings(r.Context(), &req.UserSettings); err != nil {
 		log.Printf("settings update error: %v", err)
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to update settings: " + err.Error()})
+		return
+	}
+	if err := app.store.UpdateUserLocation(r.Context(), user.ID, req.City, req.State, req.Country); err != nil {
+		log.Printf("location update error: %v", err)
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to update location"})
 		return
 	}
 
@@ -72,11 +93,18 @@ func (app *appState) handleUpdateSettings(w http.ResponseWriter, r *http.Request
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to get updated settings"})
 		return
 	}
+	updatedUser, _ := app.store.GetUserByID(r.Context(), user.ID)
 
-	writeJSON(w, http.StatusOK, map[string]any{
+	resp := map[string]any{
 		"message":  "Settings updated successfully",
 		"settings": settings,
-	})
+	}
+	if updatedUser != nil {
+		resp["city"] = updatedUser.City
+		resp["state"] = updatedUser.State
+		resp["country"] = updatedUser.Country
+	}
+	writeJSON(w, http.StatusOK, resp)
 }
 
 // handleChangePassword handles POST /api/change-password
