@@ -52,7 +52,7 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	cfg, err := config.Load(*cfgPath)
+	cfg, err := config.LoadOrDefault(*cfgPath)
 	if err != nil {
 		log.Fatalf("config: %v", err)
 	}
@@ -68,9 +68,11 @@ func main() {
 
 	st, err := store.New(ctx, dsnVal)
 	if err != nil {
-		log.Fatalf("store: %v", err)
+		log.Printf("warning: store unavailable (setup UI still works): %v", err)
+		st = nil
+	} else {
+		defer st.Close()
 	}
-	defer st.Close()
 
 	app := &relayApp{
 		cfg:            cfg,

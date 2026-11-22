@@ -41,12 +41,22 @@ func (app *relayApp) setupRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("POST /retire", app.retireHandler)
 }
 
-func (app *relayApp) healthz(w http.ResponseWriter, r *http.Request) {
-	if err := app.store.Health(r.Context()); err != nil {
-		http.Error(w, "db down", http.StatusServiceUnavailable)
-		return
+func (app *relayApp) requireStore(w http.ResponseWriter) bool {
+	if app.store == nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "database not configured; set SMAIL_DSN"})
+		return false
 	}
-	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
+	return true
+}
+
+func (app *relayApp) healthz(w http.ResponseWriter, r *http.Request) {
+	if app.store != nil {
+		if err := app.store.Health(r.Context()); err != nil {
+			http.Error(w, "db down", http.StatusServiceUnavailable)
+			return
+		}
+	}
+	writeJSON(w, http.StatusOK, map[string]string{"status": "ok", "db": func() string { if app.store==nil { return "not_configured" }; return "ok" }()})
 }
 
 func (app *relayApp) readyz(w http.ResponseWriter, r *http.Request) {
@@ -54,6 +64,7 @@ func (app *relayApp) readyz(w http.ResponseWriter, r *http.Request) {
 }
 
 func (app *relayApp) statsHandler(w http.ResponseWriter, r *http.Request) {
+	if !app.requireStore(w) { return }
 	relayID, err := app.requireRelayID(w, r)
 	if err != nil {
 		return
@@ -116,6 +127,7 @@ func (app *relayApp) statsHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (app *relayApp) blockersHandler(w http.ResponseWriter, r *http.Request) {
+	if !app.requireStore(w) { return }
 	relayID, err := app.requireRelayID(w, r)
 	if err != nil {
 		return
@@ -144,6 +156,7 @@ func (app *relayApp) blockersHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (app *relayApp) pauseHandler(w http.ResponseWriter, r *http.Request) {
+	if !app.requireStore(w) { return }
 	relayID, err := app.requireRelayID(w, r)
 	if err != nil {
 		return
@@ -168,6 +181,7 @@ func (app *relayApp) pauseHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (app *relayApp) unpauseHandler(w http.ResponseWriter, r *http.Request) {
+	if !app.requireStore(w) { return }
 	relayID, err := app.requireRelayID(w, r)
 	if err != nil {
 		return
@@ -191,6 +205,7 @@ func (app *relayApp) unpauseHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (app *relayApp) recheckHandler(w http.ResponseWriter, r *http.Request) {
+	if !app.requireStore(w) { return }
 	relayID, err := app.requireRelayID(w, r)
 	if err != nil {
 		return
@@ -207,6 +222,7 @@ func (app *relayApp) recheckHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (app *relayApp) retireHandler(w http.ResponseWriter, r *http.Request) {
+	if !app.requireStore(w) { return }
 	relayID, err := app.requireRelayID(w, r)
 	if err != nil {
 		return

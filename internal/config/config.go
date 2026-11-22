@@ -1,9 +1,11 @@
 package config
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/BurntSushi/toml"
 )
@@ -77,6 +79,21 @@ type Holidays struct {
 	Specific  []string `toml:"specific"`
 }
 
+func Default() *Config {
+	return &Config{
+		MailDomain: "snaelmail.org",
+		SiteKey:    "dev",
+		SpeedKmPerDay: SpeedKmPerDay{Surface: 250, First: 500, Air: 1000},
+		Handling: Handling{BaseHours: 2, Per100QueuedH: 1, GapThresholdKm: 600, GapHoursPer600: 2},
+		Route: Route{MaxHops: 6, LocalRadiusKm: 50, ConeDeg: 60, MinProgress: 0.25},
+		Calendar: Calendar{SaturdaySpeedFactor: 0.5},
+		Customs: Customs{HoldMinH: 2, HoldMaxH: 24},
+		Stamp: Stamp{Canvas: []int{800, 400}, Positions: [][]int{{10, 10}}},
+		Limits: Limits{MaxSurfaceDays: 30, MaxAirDays: 14},
+		IMAPPort: "993",
+	}
+}
+
 func Load(path string) (*Config, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -94,6 +111,17 @@ func Load(path string) (*Config, error) {
 		cfg.Calendar.Holidays = filepath.Join(filepath.Dir(path), cfg.Calendar.Holidays)
 	}
 	return &cfg, nil
+}
+
+func LoadOrDefault(path string) (*Config, error) {
+	cfg, err := Load(path)
+	if err == nil {
+		return cfg, nil
+	}
+	if os.IsNotExist(errors.Unwrap(err)) || strings.Contains(err.Error(), "no such file or directory") {
+		return Default(), nil
+	}
+	return nil, err
 }
 
 func (c *Config) validate() error {
