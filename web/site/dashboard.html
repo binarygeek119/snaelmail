@@ -365,6 +365,7 @@
                     const userData = await response.json();
                     if (userData.is_admin) {
                         document.getElementById('adminBtn').style.display = 'inline-block';
+                        document.getElementById('postmasterBtn').style.display = 'inline-block';
                     }
                 }
             } catch (error) {
