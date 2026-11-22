@@ -79,7 +79,18 @@ func (app *relayApp) readyz(w http.ResponseWriter, r *http.Request) {
 }
 
 func (app *relayApp) statsHandler(w http.ResponseWriter, r *http.Request) {
-	if !app.requireStore(w) { return }
+	if app.store == nil {
+		s := loadSetupState()
+		writeJSON(w, http.StatusOK, map[string]any{
+			"relay_id": s.RelayID,
+			"window": r.URL.Query().Get("window"),
+			"summary": map[string]any{"letters_passed":0,"delivered":0,"sent":0,"in_route":0},
+			"daily": []any{},
+			"queue_depth": 0,
+			"note": "database not configured",
+		})
+		return
+	}
 	relayID, err := app.requireRelayID(w, r)
 	if err != nil {
 		return
