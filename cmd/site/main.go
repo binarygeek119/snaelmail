@@ -200,6 +200,12 @@ func main() {
 		w.Header().Set("Expires", "0")
 		http.ServeFile(w, r, "web/site/relay.html")
 	})
+	mux.HandleFunc("GET /want-to-help.html", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
+		w.Header().Set("Pragma", "no-cache")
+		w.Header().Set("Expires", "0")
+		http.ServeFile(w, r, "web/site/want-to-help.html")
+	})
 
 	// Health checks
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
