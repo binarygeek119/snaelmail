@@ -221,10 +221,10 @@ pre{background:#0f172a;color:#e2e8f0;padding:1rem;border-radius:8px;overflow:aut
     <h2>2. Register with Main Site</h2>
     <div class="grid">
       <label>Main Site URL<input id="main_site" value="https://snaelmail.org"></label>
-      <label>Hostname<input id="hostname" placeholder="po-desmoines-us"></label>
-      <label>City<input id="city" placeholder="Des Moines"></label>
-      <label>Region / State<input id="region" placeholder="Iowa"></label>
-      <label>Country Code<input id="cc" placeholder="US"></label>
+      <label>City<input id="city" placeholder="Des Moines" oninput="updateHostname()"></label>
+      <label>Region / State<input id="region" placeholder="Iowa" oninput="updateHostname()"></label>
+      <label>Country Code<input id="cc" placeholder="US" oninput="updateHostname()"></label>
+      <label>Hostname<input id="hostname" placeholder="po-desmoines-us" readonly style="background:#f3f4f6;"></label>
       <label>Timezone<input id="tz" placeholder="America/Chicago"></label>
       <label>Latitude<input id="lat" type="number" step="any" placeholder="41.5868"></label>
       <label>Longitude<input id="lon" type="number" step="any" placeholder="-93.6250"></label>
@@ -239,6 +239,19 @@ pre{background:#0f172a;color:#e2e8f0;padding:1rem;border-radius:8px;overflow:aut
   </div>
 </div>
 <script>
+function slugPart(s){
+  return (s||'').toLowerCase().normalize('NFKD').replace(/[^a-z0-9]+/g,'').slice(0,24);
+}
+function updateHostname(){
+  const city = document.getElementById('city').value;
+  const region = document.getElementById('region').value;
+  const cc = (document.getElementById('cc').value||'').toLowerCase().replace(/[^a-z]/g,'').slice(0,2);
+  let mid = slugPart(city) || slugPart(region) || 'relay';
+  if (mid.length < 2) mid = (mid + 'relay').slice(0,24);
+  if (mid.length > 24) mid = mid.slice(0,24);
+  const host = 'po-' + mid + '-' + (cc || 'xx');
+  document.getElementById('hostname').value = host;
+}
 async function loadStatus(){
   const r = await fetch('/api/setup/status'); const d = await r.json();
   const s = d.state || {};
@@ -246,6 +259,7 @@ async function loadStatus(){
   for (const k of ['main_site','hostname','city','region','cc','tz','pubkey','fingerprint']) { const el=document.getElementById(k); if(el && s[k]!=null) el.value=s[k]; }
   if (s.lat!=null) document.getElementById('lat').value=s.lat;
   if (s.lon!=null) document.getElementById('lon').value=s.lon;
+  updateHostname();
   document.getElementById('state').textContent = JSON.stringify(d, null, 2);
 }
 async function keygen(){
