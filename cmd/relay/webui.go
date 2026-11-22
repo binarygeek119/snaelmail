@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"crypto/ed25519"
 	"crypto/rand"
 	"encoding/base64"
@@ -118,6 +119,27 @@ func (app *relayApp) setupKeygenHandler(w http.ResponseWriter, r *http.Request) 
 	writeJSON(w, http.StatusOK, map[string]any{"state": s})
 }
 
+func lookupRelayIDByHostname(ctx context.Context, client *http.Client, mainSite, hostname string) string {
+	// try open-post-offices listing
+	req, _ := http.NewRequestWithContext(ctx, http.MethodGet, strings.TrimRight(mainSite, "/")+"/open-post-offices", nil)
+	resp, err := client.Do(req)
+	if err == nil {
+		defer resp.Body.Close()
+		var data struct { Relays []map[string]any `json:"relays"` }
+		if json.NewDecoder(resp.Body).Decode(&data) == nil {
+			for _, r := range data.Relays {
+				h, _ := r["hostname"].(string)
+				if h == "" { if v,ok := r["Hostname"].(string); ok { h=v } }
+				if strings.EqualFold(h, hostname) {
+					if id,ok := r["id"].(string); ok { return id }
+					if id,ok := r["ID"].(string); ok { return id }
+				}
+			}
+		}
+	}
+	return ""
+}
+
 func (app *relayApp) setupRegisterHandler(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		MainSite string  `json:"main_site"`
@@ -173,6 +195,17 @@ func (app *relayApp) setupRegisterHandler(w http.ResponseWriter, r *http.Request
 	defer resp.Body.Close()
 	rb, _ := io.ReadAll(resp.Body)
 	if resp.StatusCode >= 300 {
+		// if already registered, try to look up relay id
+		if resp.StatusCode == http.StatusConflict {
+			if id := lookupRelayIDByHostname(r.Context(), client, s.MainSite, s.Hostname); id != "" {
+				s.RelayID = id
+				s.Status = "registered"
+				s.LastError = ""
+				_ = saveSetupState(s)
+				writeJSON(w, http.StatusOK, map[string]any{"state": s, "message": "Relay already registered; linked existing relay."})
+				return
+			}
+		}
 		s.Status = "error"
 		s.LastError = string(rb)
 		_ = saveSetupState(s)
@@ -184,6 +217,7 @@ func (app *relayApp) setupRegisterHandler(w http.ResponseWriter, r *http.Request
 	var out map[string]any
 	_ = json.Unmarshal(rb, &out)
 	if id, ok := out["id"].(string); ok { s.RelayID = id }
+	if id, ok := out["relay_id"].(string); ok { s.RelayID = id }
 	s.Status = "registered"
 	s.LastError = ""
 	_ = saveSetupState(s)
