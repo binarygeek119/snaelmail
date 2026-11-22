@@ -257,6 +257,7 @@ func main() {
 	// Admin relay management
 	mux.HandleFunc("POST /api/admin/relays/{id}/activate", app.handleAdminActivateRelay)
 	mux.HandleFunc("POST /api/admin/relays/{id}/location", app.handleAdminUpdateRelayLocation)
+	mux.HandleFunc("POST /api/admin/relays/{id}/stamp", app.handleAdminUpdateRelayStamp)
 	mux.HandleFunc("POST /api/admin/relays/{id}/suspend", app.handleAdminSuspendRelay)
 	mux.HandleFunc("POST /api/admin/relays/{id}/unsuspend", app.handleAdminUnsuspendRelay)
 	mux.HandleFunc("DELETE /api/admin/relays/{id}", app.handleAdminDeleteRelay)

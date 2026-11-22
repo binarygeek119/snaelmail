@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -68,7 +69,7 @@ func (app *appState) apiPublishPage(w http.ResponseWriter, r *http.Request, rela
 	}
 
 	// Add images
-	for _, img := range req.Images {
+	for i, img := range req.Images {
 		data, err := base64.StdEncoding.DecodeString(img.Data)
 		if err != nil {
 			writeJSON(w, http.StatusBadRequest, map[string]string{"error": fmt.Sprintf("invalid base64 for %s", img.Filename)})
@@ -78,6 +79,8 @@ func (app *appState) apiPublishPage(w http.ResponseWriter, r *http.Request, rela
 			writeJSON(w, http.StatusBadRequest, map[string]string{"error": fmt.Sprintf("invalid image %s: %v", img.Filename, err)})
 			return
 		}
+		sum := sha256.Sum256(data)
+		_ = app.store.UpsertPageAsset(r.Context(), relayID, "photo", img.Filename, data, sum, i)
 	}
 
 	// Add logo

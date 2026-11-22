@@ -319,6 +319,18 @@
                         <input id="centralPMRole" style="width:100%;padding:.6rem;border:1px solid #ddd;border-radius:8px;">
                         <label style="display:block;margin:.5rem 0 .25rem;font-weight:600;">Postmaster Bio</label>
                         <textarea id="centralPMBio" style="width:100%;min-height:80px;padding:.75rem;border:1px solid #ddd;border-radius:8px;"></textarea>
+
+                        <label style="display:block;margin:.75rem 0 .25rem;font-weight:600;">City Images (up to 6)</label>
+                        <input id="centralPhotos" type="file" accept="image/*" multiple style="width:100%;">
+                        <p class="setting-description" style="color:#666;font-size:.9rem;">Selected images will be uploaded when you click Save Page.</p>
+
+                        <label style="display:block;margin:.75rem 0 .25rem;font-weight:600;">Post Office Stamp (SVG or PNG)</label>
+                        <input id="centralStamp" type="file" accept=".svg,image/svg+xml,image/png" style="width:100%;">
+                        <div style="display:flex;gap:.5rem;margin-top:.5rem;">
+                            <button class="btn" type="button" onclick="uploadCentralStamp()">Upload Stamp</button>
+                            <span id="centralStampMsg" style="color:#555;"></span>
+                        </div>
+
                         <div style="display:flex;gap:.5rem;margin-top:1rem;">
                             <button class="btn" onclick="saveCentralPage()">Save Page</button>
                             <a id="centralViewLink" class="btn" href="#" target="_blank" style="text-decoration:none;display:inline-block;">View Page</a>
@@ -774,13 +786,33 @@
             document.getElementById('centralPageMsg').textContent = 'Edit the public page content and click Save Page.';
         }
 
+        async function fileToBase64(file) {
+            return await new Promise((resolve, reject) => {
+                const r = new FileReader();
+                r.onload = () => resolve(String(r.result).split(',')[1] || '');
+                r.onerror = reject;
+                r.readAsDataURL(file);
+            });
+        }
+
         async function saveCentralPage() {
             if (!centralRelayCache) { alert('Central relay not loaded'); return; }
             const msg = document.getElementById('centralPageMsg');
             msg.textContent = 'Saving...';
             const about = document.getElementById('centralAbout').value.trim();
+            const files = Array.from(document.getElementById('centralPhotos').files || []).slice(0, 6);
+            const images = [];
+            const photos = [];
+            for (let i = 0; i < files.length; i++) {
+                const f = files[i];
+                const ext = (f.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g,'') || 'jpg';
+                const filename = `${i}.${ext === 'jpeg' ? 'jpg' : ext}`;
+                const data = await fileToBase64(f);
+                images.push({ filename, data });
+                photos.push({ ord: i, filename, caption: f.name.replace(/\.[^.]+$/, '').slice(0, 120) });
+            }
             const manifest = {
-                photos: [],
+                photos: photos,
                 about: about,
                 facts: [
                     { key: 'City', value: String(centralRelayCache.city || '') },
@@ -806,7 +838,7 @@
                 const response = await fetch(`/api/relay/${centralRelayCache.id}/publish`, {
                     method: 'POST',
                     headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ manifest, images: [] })
+                    body: JSON.stringify({ manifest, images })
                 });
                 const data = await response.json().catch(() => ({}));
                 if (!response.ok) {
@@ -817,6 +849,33 @@
             } catch (e) {
                 console.error(e);
                 msg.textContent = 'Error saving page.';
+            }
+        }
+
+        async function uploadCentralStamp() {
+            if (!centralRelayCache) return;
+            const msg = document.getElementById('centralStampMsg');
+            const f = (document.getElementById('centralStamp').files || [])[0];
+            if (!f) { msg.textContent = 'Choose a stamp file first.'; return; }
+            msg.textContent = 'Uploading...';
+            try {
+                const isSVG = f.type === 'image/svg+xml' || f.name.toLowerCase().endsWith('.svg');
+                const body = { stamp_svg: '', stamp_png_base64: '' };
+                if (isSVG) {
+                    body.stamp_svg = await f.text();
+                } else {
+                    body.stamp_png_base64 = await fileToBase64(f);
+                }
+                const response = await fetch(`/api/admin/relays/${centralRelayCache.id}/stamp`, {
+                    method: 'POST',
+                    headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body)
+                });
+                const data = await response.json().catch(() => ({}));
+                msg.textContent = response.ok ? 'Stamp updated.' : ('Error: ' + (data.error || response.status));
+            } catch (e) {
+                console.error(e);
+                msg.textContent = 'Error uploading stamp.';
             }
         }
         

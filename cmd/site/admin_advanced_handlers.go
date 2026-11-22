@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/base64"
 	"encoding/json"
 	"log"
 	"net/http"
@@ -270,6 +272,45 @@ func (app *appState) handleAdminUpdateRelayLocation(w http.ResponseWriter, r *ht
 	}
 	if req.TZ == "" { req.TZ = "UTC" }
 	if err := app.store.UpdateRelayLocation(r.Context(), relayID, req.City, req.Region, req.CC, req.Lat, req.Lon, req.TZ); err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]string{"status": "success"})
+}
+
+// handleAdminUpdateRelayStamp handles POST /api/admin/relays/{id}/stamp
+func (app *appState) handleAdminUpdateRelayStamp(w http.ResponseWriter, r *http.Request) {
+	_, user := app.requireAdmin(w, r)
+	if user == nil {
+		return
+	}
+	relayID, err := uuid.Parse(r.PathValue("id"))
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid relay_id"})
+		return
+	}
+	var req struct {
+		StampSVG       string `json:"stamp_svg"`
+		StampPNGBase64 string `json:"stamp_png_base64"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid JSON"})
+		return
+	}
+	var stampPNG []byte
+	if req.StampPNGBase64 != "" {
+		stampPNG, err = base64.StdEncoding.DecodeString(req.StampPNGBase64)
+		if err != nil {
+			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid stamp_png_base64"})
+			return
+		}
+	}
+	sumSrc := []byte(req.StampSVG)
+	if len(stampPNG) > 0 && req.StampSVG == "" {
+		sumSrc = stampPNG
+	}
+	sha := sha256.Sum256(sumSrc)
+	if err := app.store.UpdateRelayStamp(r.Context(), relayID, req.StampSVG, stampPNG, sha); err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
 		return
 	}

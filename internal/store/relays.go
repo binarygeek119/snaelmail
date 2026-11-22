@@ -358,6 +358,12 @@ func (s *Store) GetRelayByBranchAPIKey(ctx context.Context, key string) (*Relay,
 	return &r, nil
 }
 
+// UpdateRelayStamp updates the relay stamp SVG/PNG/SHA256.
+func (s *Store) UpdateRelayStamp(ctx context.Context, id uuid.UUID, stampSVG string, stampPNG []byte, stampSHA [32]byte) error {
+	_, err := s.pool.Exec(ctx, `UPDATE relays SET stamp_svg=$1, stamp_png=$2, stamp_sha256=$3 WHERE id=$4`, stampSVG, stampPNG, stampSHA[:], id)
+	return err
+}
+
 // EnsureCentralRelay creates the central post office if it does not exist.
 func (s *Store) EnsureCentralRelay(ctx context.Context) error {
 	var exists bool
