@@ -165,6 +165,37 @@ function importStampSVG(e){
     const svg=String(r.result||'');
     document.getElementById('svgOut').value=svg;
     document.getElementById('stampPreview').innerHTML=svg;
+    try {
+      const doc = new DOMParser().parseFromString(svg, 'image/svg+xml');
+      const texts = Array.from(doc.querySelectorAll('text')).map(t => (t.textContent||'').trim());
+      // expected order: SNAELMAIL, city, loc, bottom
+      if (texts.length >= 4) {
+        if (texts[1]) document.getElementById('sgCity').value = texts[1];
+        if (texts[2]) { const parts = texts[2].split(/\s+/); document.getElementById('sgCC').value = parts.pop() || ''; document.getElementById('sgRegion').value = parts.join(' '); }
+        if (texts[3]) document.getElementById('sgBottom').value = texts[3];
+      }
+      const top = doc.querySelectorAll('text')[0];
+      const cityT = doc.querySelectorAll('text')[1];
+      const locT = doc.querySelectorAll('text')[2];
+      const botT = doc.querySelectorAll('text')[3];
+      if (top && top.getAttribute('fill')) document.getElementById('sgTopColor').value = top.getAttribute('fill');
+      if (cityT && cityT.getAttribute('fill')) document.getElementById('sgCityColor').value = cityT.getAttribute('fill');
+      if (locT && locT.getAttribute('fill')) document.getElementById('sgLocColor').value = locT.getAttribute('fill');
+      if (botT && botT.getAttribute('fill')) document.getElementById('sgBottomColor').value = botT.getAttribute('fill');
+      const poly = doc.querySelector('polygon');
+      if (poly) {
+        if (poly.getAttribute('fill')) document.getElementById('sgFill').value = poly.getAttribute('fill');
+        if (poly.getAttribute('stroke')) document.getElementById('sgOutline').value = poly.getAttribute('stroke');
+      }
+      const strokePoly = Array.from(doc.querySelectorAll('polygon')).find(p => p.getAttribute('fill')==='none' && p.getAttribute('stroke'));
+      if (strokePoly) document.getElementById('sgStroke').value = strokePoly.getAttribute('stroke');
+      const vb = (doc.querySelector('svg')||{}).getAttribute ? doc.querySelector('svg').getAttribute('viewBox')||'' : '';
+      if (svg.includes('<path d=\'M') && vb.includes('140') || vb.includes('150') || vb.includes('160') || vb.includes('170')) document.getElementById('sgShape').value = 'ribbon';
+      else if (doc.querySelectorAll('rect').length >= 2 && svg.includes('<circle')) document.getElementById('sgShape').value = 'usa';
+      else document.getElementById('sgShape').value = 'serrated';
+      // re-render from parsed fields so controls are live
+      renderStamp();
+    } catch(err) { console.warn('Could not parse stamp fields', err); }
   };
   r.readAsText(f);
   e.target.value='';
