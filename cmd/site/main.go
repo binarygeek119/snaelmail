@@ -182,6 +182,24 @@ func main() {
 		w.Header().Set("Expires", "0")
 		http.ServeFile(w, r, "web/site/admin.html")
 	})
+	mux.HandleFunc("GET /postmaster.html", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
+		w.Header().Set("Pragma", "no-cache")
+		w.Header().Set("Expires", "0")
+		http.ServeFile(w, r, "web/site/postmaster.html")
+	})
+	mux.HandleFunc("GET /post-offices.html", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
+		w.Header().Set("Pragma", "no-cache")
+		w.Header().Set("Expires", "0")
+		http.ServeFile(w, r, "web/site/post-offices.html")
+	})
+	mux.HandleFunc("GET /relay.html", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
+		w.Header().Set("Pragma", "no-cache")
+		w.Header().Set("Expires", "0")
+		http.ServeFile(w, r, "web/site/relay.html")
+	})
 
 	// Health checks
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
