@@ -43,39 +43,47 @@ type Relay struct {
 	LettersPassed int64
 	Complaints30d int
 	BranchAPIKey  *string
+	OwnerUserID   *uuid.UUID
+	OwnerUsername string
 }
 
 // CreateRelay inserts a new relay.
-func (s *Store) CreateRelay(ctx context.Context, hostname string, pubkey, keyFpr []byte, city, region, cc string, lat, lon float64, tz, stampSVG string, stampPNG, stampSHA256 []byte) (*Relay, error) {
+func (s *Store) CreateRelay(ctx context.Context, hostname string, pubkey, keyFpr []byte, city, region, cc string, lat, lon float64, tz, stampSVG string, stampPNG, stampSHA256 []byte, ownerUserID *uuid.UUID) (*Relay, error) {
 	id := uuid.New()
 	var r Relay
+	var ownerUsername *string
 	err := s.pool.QueryRow(ctx, `
-		INSERT INTO relays (id, hostname, pubkey, key_fpr, city, region, cc, lat, lon, tz, stamp_svg, stamp_png, stamp_sha256, status)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, 'pending')
+		INSERT INTO relays (id, hostname, pubkey, key_fpr, city, region, cc, lat, lon, tz, stamp_svg, stamp_png, stamp_sha256, status, owner_user_id)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, 'pending', $14)
 		RETURNING id, hostname, pubkey, key_fpr, city, region, cc, lat, lon, tz, stamp_svg, stamp_png, stamp_sha256,
-		          plate_json, plate_sig, status, official, paused, central, opened_at, retired_at, last_txt_check, letters_passed, complaints_30d
-	`, id, hostname, pubkey, keyFpr, city, region, cc, lat, lon, tz, stampSVG, stampPNG, stampSHA256).Scan(
+		          plate_json, plate_sig, status, official, paused, central, opened_at, retired_at, last_txt_check, letters_passed, complaints_30d, owner_user_id,
+		          (SELECT handle FROM users WHERE id = relays.owner_user_id)
+	`, id, hostname, pubkey, keyFpr, city, region, cc, lat, lon, tz, stampSVG, stampPNG, stampSHA256, ownerUserID).Scan(
 		&r.ID, &r.Hostname, &r.Pubkey, &r.KeyFpr, &r.City, &r.Region, &r.CC, &r.Lat, &r.Lon, &r.TZ,
 		&r.StampSVG, &r.StampPNG, &r.StampSHA256, &r.PlateJSON, &r.PlateSig, &r.Status, &r.Official,
-		&r.Paused, &r.Central, &r.OpenedAt, &r.RetiredAt, &r.LastTXTCheck, &r.LettersPassed, &r.Complaints30d,
+		&r.Paused, &r.Central, &r.OpenedAt, &r.RetiredAt, &r.LastTXTCheck, &r.LettersPassed, &r.Complaints30d, &r.OwnerUserID, &ownerUsername,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("create relay: %w", err)
 	}
+	if ownerUsername != nil { r.OwnerUsername = *ownerUsername }
 	return &r, nil
 }
 
 // GetRelayByID fetches a relay by ID.
 func (s *Store) GetRelayByID(ctx context.Context, id uuid.UUID) (*Relay, error) {
 	var r Relay
+	var ownerUsername *string
 	err := s.pool.QueryRow(ctx, `
-		SELECT id, hostname, pubkey, key_fpr, city, region, cc, lat, lon, tz, stamp_svg, stamp_png, stamp_sha256,
-		       plate_json, plate_sig, status, official, paused, central, opened_at, retired_at, last_txt_check, letters_passed, complaints_30d
-		FROM relays WHERE id = $1
+		SELECT r.id, r.hostname, r.pubkey, r.key_fpr, r.city, r.region, r.cc, r.lat, r.lon, r.tz, r.stamp_svg, r.stamp_png, r.stamp_sha256,
+		       r.plate_json, r.plate_sig, r.status, r.official, r.paused, r.central, r.opened_at, r.retired_at, r.last_txt_check, r.letters_passed, r.complaints_30d,
+		       r.owner_user_id, u.handle
+		FROM relays r LEFT JOIN users u ON u.id = r.owner_user_id WHERE r.id = $1
 	`, id).Scan(
 		&r.ID, &r.Hostname, &r.Pubkey, &r.KeyFpr, &r.City, &r.Region, &r.CC, &r.Lat, &r.Lon, &r.TZ,
 		&r.StampSVG, &r.StampPNG, &r.StampSHA256, &r.PlateJSON, &r.PlateSig, &r.Status, &r.Official,
 		&r.Paused, &r.Central, &r.OpenedAt, &r.RetiredAt, &r.LastTXTCheck, &r.LettersPassed, &r.Complaints30d,
+		&r.OwnerUserID, &ownerUsername,
 	)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, nil
@@ -83,20 +91,24 @@ func (s *Store) GetRelayByID(ctx context.Context, id uuid.UUID) (*Relay, error) 
 	if err != nil {
 		return nil, fmt.Errorf("get relay by id: %w", err)
 	}
+	if ownerUsername != nil { r.OwnerUsername = *ownerUsername }
 	return &r, nil
 }
 
 // GetRelayByHostname fetches a relay by hostname.
 func (s *Store) GetRelayByHostname(ctx context.Context, hostname string) (*Relay, error) {
 	var r Relay
+	var ownerUsername *string
 	err := s.pool.QueryRow(ctx, `
-		SELECT id, hostname, pubkey, key_fpr, city, region, cc, lat, lon, tz, stamp_svg, stamp_png, stamp_sha256,
-		       plate_json, plate_sig, status, official, paused, central, opened_at, retired_at, last_txt_check, letters_passed, complaints_30d
-		FROM relays WHERE hostname = $1
+		SELECT r.id, r.hostname, r.pubkey, r.key_fpr, r.city, r.region, r.cc, r.lat, r.lon, r.tz, r.stamp_svg, r.stamp_png, r.stamp_sha256,
+		       r.plate_json, r.plate_sig, r.status, r.official, r.paused, r.central, r.opened_at, r.retired_at, r.last_txt_check, r.letters_passed, r.complaints_30d,
+		       r.owner_user_id, u.handle
+		FROM relays r LEFT JOIN users u ON u.id = r.owner_user_id WHERE r.hostname = $1
 	`, hostname).Scan(
 		&r.ID, &r.Hostname, &r.Pubkey, &r.KeyFpr, &r.City, &r.Region, &r.CC, &r.Lat, &r.Lon, &r.TZ,
 		&r.StampSVG, &r.StampPNG, &r.StampSHA256, &r.PlateJSON, &r.PlateSig, &r.Status, &r.Official,
 		&r.Paused, &r.Central, &r.OpenedAt, &r.RetiredAt, &r.LastTXTCheck, &r.LettersPassed, &r.Complaints30d,
+		&r.OwnerUserID, &ownerUsername,
 	)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, nil
@@ -104,6 +116,7 @@ func (s *Store) GetRelayByHostname(ctx context.Context, hostname string) (*Relay
 	if err != nil {
 		return nil, fmt.Errorf("get relay by hostname: %w", err)
 	}
+	if ownerUsername != nil { r.OwnerUsername = *ownerUsername }
 	return &r, nil
 }
 
@@ -211,11 +224,12 @@ func (s *Store) IncrementLettersPassed(ctx context.Context, id uuid.UUID) error 
 // ListActiveRelays returns all active, unpaused relays with valid plates.
 func (s *Store) ListActiveRelays(ctx context.Context) ([]*Relay, error) {
 	rows, err := s.pool.Query(ctx, `
-		SELECT id, hostname, pubkey, key_fpr, city, region, cc, lat, lon, tz, stamp_svg, stamp_png, stamp_sha256,
-		       plate_json, plate_sig, status, official, paused, central, opened_at, retired_at, last_txt_check, letters_passed, complaints_30d
-		FROM relays
-		WHERE status = 'active' AND paused = false AND (plate_json IS NOT NULL OR central = true)
-		ORDER BY letters_passed DESC
+		SELECT r.id, r.hostname, r.pubkey, r.key_fpr, r.city, r.region, r.cc, r.lat, r.lon, r.tz, r.stamp_svg, r.stamp_png, r.stamp_sha256,
+		       r.plate_json, r.plate_sig, r.status, r.official, r.paused, r.central, r.opened_at, r.retired_at, r.last_txt_check, r.letters_passed, r.complaints_30d,
+		       r.owner_user_id, u.handle
+		FROM relays r LEFT JOIN users u ON u.id = r.owner_user_id
+		WHERE r.status = 'active' AND r.paused = false AND (r.plate_json IS NOT NULL OR r.central = true)
+		ORDER BY r.letters_passed DESC
 	`)
 	if err != nil {
 		return nil, fmt.Errorf("list active relays: %w", err)
@@ -225,13 +239,16 @@ func (s *Store) ListActiveRelays(ctx context.Context) ([]*Relay, error) {
 	var relays []*Relay
 	for rows.Next() {
 		var r Relay
+		var ownerUsername *string
 		if err := rows.Scan(
 			&r.ID, &r.Hostname, &r.Pubkey, &r.KeyFpr, &r.City, &r.Region, &r.CC, &r.Lat, &r.Lon, &r.TZ,
 			&r.StampSVG, &r.StampPNG, &r.StampSHA256, &r.PlateJSON, &r.PlateSig, &r.Status, &r.Official,
 			&r.Paused, &r.Central, &r.OpenedAt, &r.RetiredAt, &r.LastTXTCheck, &r.LettersPassed, &r.Complaints30d,
+			&r.OwnerUserID, &ownerUsername,
 		); err != nil {
 			return nil, fmt.Errorf("scan relay: %w", err)
 		}
+		if ownerUsername != nil { r.OwnerUsername = *ownerUsername }
 		relays = append(relays, &r)
 	}
 	return relays, nil
@@ -340,14 +357,17 @@ func (s *Store) SetRelayBranchAPIKey(ctx context.Context, relayID uuid.UUID, key
 // GetRelayByBranchAPIKey fetches a relay by branch API key.
 func (s *Store) GetRelayByBranchAPIKey(ctx context.Context, key string) (*Relay, error) {
 	var r Relay
+	var ownerUsername *string
 	err := s.pool.QueryRow(ctx, `
-		SELECT id, hostname, pubkey, key_fpr, city, region, cc, lat, lon, tz, stamp_svg, stamp_png, stamp_sha256,
-		       plate_json, plate_sig, status, official, paused, central, opened_at, retired_at, last_txt_check, letters_passed, complaints_30d, branch_api_key
-		FROM relays WHERE branch_api_key = $1
+		SELECT r.id, r.hostname, r.pubkey, r.key_fpr, r.city, r.region, r.cc, r.lat, r.lon, r.tz, r.stamp_svg, r.stamp_png, r.stamp_sha256,
+		       r.plate_json, r.plate_sig, r.status, r.official, r.paused, r.central, r.opened_at, r.retired_at, r.last_txt_check, r.letters_passed, r.complaints_30d, r.branch_api_key,
+		       r.owner_user_id, u.handle
+		FROM relays r LEFT JOIN users u ON u.id = r.owner_user_id WHERE r.branch_api_key = $1
 	`, key).Scan(
 		&r.ID, &r.Hostname, &r.Pubkey, &r.KeyFpr, &r.City, &r.Region, &r.CC, &r.Lat, &r.Lon, &r.TZ,
 		&r.StampSVG, &r.StampPNG, &r.StampSHA256, &r.PlateJSON, &r.PlateSig, &r.Status, &r.Official,
 		&r.Paused, &r.Central, &r.OpenedAt, &r.RetiredAt, &r.LastTXTCheck, &r.LettersPassed, &r.Complaints30d, &r.BranchAPIKey,
+		&r.OwnerUserID, &ownerUsername,
 	)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, nil
@@ -355,6 +375,7 @@ func (s *Store) GetRelayByBranchAPIKey(ctx context.Context, key string) (*Relay,
 	if err != nil {
 		return nil, fmt.Errorf("get relay by branch api key: %w", err)
 	}
+	if ownerUsername != nil { r.OwnerUsername = *ownerUsername }
 	return &r, nil
 }
 

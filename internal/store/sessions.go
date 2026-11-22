@@ -102,12 +102,12 @@ func (s *Store) GetAllUsers(ctx context.Context) ([]User, error) {
 // GetAllRelays returns all relays
 func (s *Store) GetAllRelays(ctx context.Context) ([]Relay, error) {
 	rows, err := s.pool.Query(ctx, `
-		SELECT id, hostname, pubkey, key_fpr, city, region, cc, lat, lon, tz,
-		       stamp_svg, stamp_png, stamp_sha256, plate_json, plate_sig,
-		       status, official, paused, central, opened_at, retired_at, last_txt_check,
-		       letters_passed, complaints_30d
-		FROM relays
-		ORDER BY letters_passed DESC
+		SELECT r.id, r.hostname, r.pubkey, r.key_fpr, r.city, r.region, r.cc, r.lat, r.lon, r.tz,
+		       r.stamp_svg, r.stamp_png, r.stamp_sha256, r.plate_json, r.plate_sig,
+		       r.status, r.official, r.paused, r.central, r.opened_at, r.retired_at, r.last_txt_check,
+		       r.letters_passed, r.complaints_30d, r.owner_user_id, u.handle
+		FROM relays r LEFT JOIN users u ON u.id = r.owner_user_id
+		ORDER BY r.letters_passed DESC
 	`)
 	if err != nil {
 		return nil, err
@@ -117,15 +117,17 @@ func (s *Store) GetAllRelays(ctx context.Context) ([]Relay, error) {
 	var relays []Relay
 	for rows.Next() {
 		var r Relay
+		var ownerUsername *string
 		err := rows.Scan(
 			&r.ID, &r.Hostname, &r.Pubkey, &r.KeyFpr, &r.City, &r.Region, &r.CC, &r.Lat, &r.Lon, &r.TZ,
 			&r.StampSVG, &r.StampPNG, &r.StampSHA256, &r.PlateJSON, &r.PlateSig,
 			&r.Status, &r.Official, &r.Paused, &r.Central, &r.OpenedAt, &r.RetiredAt, &r.LastTXTCheck,
-			&r.LettersPassed, &r.Complaints30d,
+			&r.LettersPassed, &r.Complaints30d, &r.OwnerUserID, &ownerUsername,
 		)
 		if err != nil {
 			return nil, err
 		}
+		if ownerUsername != nil { r.OwnerUsername = *ownerUsername }
 		relays = append(relays, r)
 	}
 	return relays, nil

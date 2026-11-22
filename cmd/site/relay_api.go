@@ -93,6 +93,7 @@ func (app *appState) apiCreateRelay(w http.ResponseWriter, r *http.Request) {
 	stampSHA256 := []byte{} // placeholder
 
 	// Create relay
+	ownerID := owner.ID
 	relay, err := app.store.CreateRelay(
 		r.Context(),
 		req.Hostname,
@@ -107,6 +108,7 @@ func (app *appState) apiCreateRelay(w http.ResponseWriter, r *http.Request) {
 		req.StampSVG,
 		stampPNG,
 		stampSHA256,
+		&ownerID,
 	)
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to create relay"})
