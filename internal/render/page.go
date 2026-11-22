@@ -175,16 +175,6 @@ const pageTemplate = `<!DOCTYPE html>
     </div>
   </header>
 
-  {{if .Relay.StampSVG}}
-  <section class="stamp">
-    <div class="stamp-mark">{{.Relay.StampSVG}}</div>
-    <div>
-      <h2 style="margin:0;color:#0f172a;">Post Office Stamp</h2>
-      <p class="meta" style="margin:.25rem 0 0 0;">Official stamp of {{.Relay.City}} Post Office</p>
-    </div>
-  </section>
-  {{end}}
-
   {{if .Manifest.Photos}}
   <section class="photos" id="photoGallery">
     <h2>City Photos</h2>
@@ -274,6 +264,17 @@ const pageTemplate = `<!DOCTYPE html>
     <h2>About {{.Relay.City}}</h2>
     <p>{{.Manifest.About}}</p>
   </section>
+
+  {{if .Relay.StampSVG}}
+  <section class="stamp">
+    <div class="stamp-mark">{{.Relay.StampSVG}}</div>
+    <div>
+      <h2 style="margin:0;color:#0f172a;">Post Office Stamp</h2>
+      <p class="meta" style="margin:.25rem 0 0 0;">Official stamp of {{.Relay.City}} Post Office</p>
+    </div>
+  </section>
+  {{end}}
+
 
   {{if .Manifest.Facts}}
   <section class="facts">
