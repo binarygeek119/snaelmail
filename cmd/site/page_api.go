@@ -30,6 +30,8 @@ func (app *appState) apiPublishPage(w http.ResponseWriter, r *http.Request, rela
 			Filename string `json:"filename"`
 			Data     string `json:"data"` // base64-encoded
 		} `json:"logo"`
+		StampSVG       string `json:"stamp_svg"`
+		StampPNGBase64 string `json:"stamp_png_base64"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -178,7 +180,7 @@ func (app *appState) apiOpenPostOffice(w http.ResponseWriter, r *http.Request) {
 		Lon:          relay.Lon,
 		OpenedAt:     relay.OpenedAt,
 		LettersCount: relay.LettersPassed,
-		StampSVG:     template.HTML(relay.StampSVG),
+		StampSVG:     template.HTML(func() string { if strings.TrimSpace(relay.StampSVG) != "" { return relay.StampSVG }; return render.DefaultStampSVG(relay.City, relay.Region, relay.CC) }()),
 	}
 
 	// Fetch page
@@ -283,7 +285,7 @@ func (app *appState) apiPreviewPage(w http.ResponseWriter, r *http.Request, rela
 		Lon:          relay.Lon,
 		OpenedAt:     relay.OpenedAt,
 		LettersCount: relay.LettersPassed,
-		StampSVG:     template.HTML(relay.StampSVG),
+		StampSVG:     template.HTML(func() string { if strings.TrimSpace(relay.StampSVG) != "" { return relay.StampSVG }; return render.DefaultStampSVG(relay.City, relay.Region, relay.CC) }()),
 	}
 
 	// Render preview

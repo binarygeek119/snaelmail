@@ -368,10 +368,12 @@ async function loadImages(){
   const list = d.images || [];
   const el = document.getElementById('imgList');
   if(!list.length){ el.innerHTML='<div class="muted">No images uploaded.</div>'; return; }
-  el.innerHTML = list.map(function(img){ return '<div style="width:180px;border:1px solid #ddd;border-radius:8px;padding:.5rem;background:#fff;">'
+  el.innerHTML = list.map(function(img){ 
+    var hero = img.hero ? '<span style="background:#667eea;color:white;padding:2px 8px;border-radius:999px;font-size:.75rem;">Hero</span>' : '<button class="btn secondary" style="padding:.25rem .5rem;font-size:.8rem;" onclick="setHeroImage(\''+img.name+'\')">Set as Hero</button>';
+    return '<div style="width:180px;border:1px solid #ddd;border-radius:8px;padding:.5rem;background:#fff;">'
     + '<img src="'+img.url+'" style="width:100%;height:110px;object-fit:cover;border-radius:6px;background:#f3f4f6;">'
     + '<div style="font-size:.8rem;color:#555;margin:.35rem 0;word-break:break-word;">'+img.name+'</div>'
-    + '<button class="btn secondary" style="padding:.25rem .5rem;font-size:.8rem;" onclick="deleteImage(\''+img.name+'\')">Remove</button>'
+    + '<div style="display:flex;gap:.35rem;flex-wrap:wrap;align-items:center;">'+hero+'<button class="btn secondary" style="padding:.25rem .5rem;font-size:.8rem;" onclick="deleteImage(\''+img.name+'\')">Remove</button></div>'
     + '</div>'; }).join('');
 }
 async function uploadImages(){
@@ -388,6 +390,10 @@ async function uploadImages(){
 }
 async function deleteImage(name){
   await fetch('/api/setup/images/'+encodeURIComponent(name),{method:'DELETE'});
+  await loadImages();
+}
+async function setHeroImage(name){
+  await fetch('/api/setup/images/hero',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name})});
   await loadImages();
 }
 async function publishImages(){
@@ -443,23 +449,62 @@ loadStatus();
 </script></body></html>`
 
 func relayImagesDir() string { return filepath.Join(relayDataDir(), "images") }
+func relayImagesOrderPath() string { return filepath.Join(relayImagesDir(), "order.json") }
 
-func (app *relayApp) setupListImagesHandler(w http.ResponseWriter, r *http.Request) {
-	dir := relayImagesDir()
-	entries, err := os.ReadDir(dir)
-	if err != nil {
-		if os.IsNotExist(err) { writeJSON(w, http.StatusOK, map[string]any{"images": []any{}}); return }
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()}); return
-	}
-	type img struct { Name string `json:"name"`; Size int64 `json:"size"`; URL string `json:"url"` }
-	var out []img
+func loadImageOrder() []string {
+	b, err := os.ReadFile(relayImagesOrderPath())
+	if err != nil { return nil }
+	var o []string
+	if json.Unmarshal(b, &o) != nil { return nil }
+	return o
+}
+func saveImageOrder(order []string) {
+	_ = os.MkdirAll(relayImagesDir(), 0755)
+	b, _ := json.Marshal(order)
+	_ = os.WriteFile(relayImagesOrderPath(), b, 0644)
+}
+func orderedImageNames() []string {
+	entries, err := os.ReadDir(relayImagesDir())
+	if err != nil { return nil }
+	exists := map[string]bool{}
 	for _, e := range entries {
 		if e.IsDir() { continue }
-		n := e.Name()
-		ln := strings.ToLower(n)
-		if !(strings.HasSuffix(ln, ".png")||strings.HasSuffix(ln, ".jpg")||strings.HasSuffix(ln, ".jpeg")||strings.HasSuffix(ln, ".webp")||strings.HasSuffix(ln, ".svg")) { continue }
-		info, err := e.Info(); if err != nil { continue }
-		out = append(out, img{Name: n, Size: info.Size(), URL: "/api/setup/images/" + n})
+		n := e.Name(); ln := strings.ToLower(n)
+		if strings.HasSuffix(ln,".png")||strings.HasSuffix(ln,".jpg")||strings.HasSuffix(ln,".jpeg")||strings.HasSuffix(ln,".webp")||strings.HasSuffix(ln,".svg") {
+			exists[n]=true
+		}
+	}
+	order := loadImageOrder()
+	var out []string
+	seen := map[string]bool{}
+	for _, n := range order { if exists[n] && !seen[n] { out=append(out,n); seen[n]=true } }
+	for n := range exists { if !seen[n] { out=append(out,n) } }
+	// stable-ish: keep order file order, append unknowns in dir order
+	if len(out) > 1 {
+		// keep existing prefix, sort unknowns
+		unknown := []string{}
+		known := map[string]bool{}
+		for _, n := range order { if exists[n] { known[n]=true } }
+		for _, n := range out { if !known[n] { unknown = append(unknown,n) } }
+		// rebuild: known in order + sorted unknown
+		out2 := []string{}
+		for _, n := range order { if exists[n] { out2 = append(out2,n) } }
+		sortStrings(unknown)
+		out2 = append(out2, unknown...)
+		out = out2
+	}
+	return out
+}
+func sortStrings(a []string) { for i:=0;i<len(a);i++{ for j:=i+1;j<len(a);j++{ if a[j]<a[i]{ a[i],a[j]=a[j],a[i] } } } }
+
+func (app *relayApp) setupListImagesHandler(w http.ResponseWriter, r *http.Request) {
+	names := orderedImageNames()
+	type img struct { Name string `json:"name"`; Size int64 `json:"size"`; URL string `json:"url"`; Hero bool `json:"hero"` }
+	var out []img
+	for i, n := range names {
+		info, err := os.Stat(filepath.Join(relayImagesDir(), n))
+		if err != nil { continue }
+		out = append(out, img{Name: n, Size: info.Size(), URL: "/api/setup/images/" + n, Hero: i==0})
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"images": out})
 }
@@ -495,6 +540,13 @@ func (app *relayApp) setupUploadImageHandler(w http.ResponseWriter, r *http.Requ
 		if err := os.WriteFile(outPath, data, 0644); err != nil { continue }
 		saved = append(saved, safe)
 	}
+	if len(saved) > 0 {
+		order := orderedImageNames()
+		seen := map[string]bool{}
+		for _, n := range order { seen[n]=true }
+		for _, n := range saved { if !seen[n] { order = append(order, n) } }
+		saveImageOrder(order)
+	}
 	writeJSON(w, http.StatusOK, map[string]any{"saved": saved})
 }
 
@@ -519,6 +571,24 @@ func (app *relayApp) setupDeleteImageHandler(w http.ResponseWriter, r *http.Requ
 	name := filepath.Base(r.PathValue("name"))
 	p := filepath.Join(relayImagesDir(), name)
 	if err := os.Remove(p); err != nil && !os.IsNotExist(err) { writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()}); return }
+	order := orderedImageNames()
+	var out []string
+	for _, n := range order { if n != name { out = append(out, n) } }
+	saveImageOrder(out)
+	writeJSON(w, http.StatusOK, map[string]string{"status":"ok"})
+}
+
+func (app *relayApp) setupImageHeroHandler(w http.ResponseWriter, r *http.Request) {
+	var req struct{ Name string `json:"name"` }
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil { writeJSON(w,400,map[string]string{"error":"invalid JSON"}); return }
+	name := filepath.Base(req.Name)
+	order := orderedImageNames()
+	found := false
+	var out []string
+	for _, n := range order { if n == name { found = true } else { out = append(out,n) } }
+	if !found { writeJSON(w,404,map[string]string{"error":"image not found"}); return }
+	out = append([]string{name}, out...)
+	saveImageOrder(out)
 	writeJSON(w, http.StatusOK, map[string]string{"status":"ok"})
 }
 
@@ -528,15 +598,12 @@ func (app *relayApp) setupPublishHandler(w http.ResponseWriter, r *http.Request)
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error":"relay must be registered first (missing main_site or relay_id)"})
 		return
 	}
-	// build images from /config/images
-	entries, _ := os.ReadDir(relayImagesDir())
+	// build images from /config/images in hero-first order
+	names := orderedImageNames()
 	var images []map[string]string
 	var photos []map[string]any
 	ord := 0
-	for _, e := range entries {
-		if e.IsDir() { continue }
-		n := e.Name(); ln := strings.ToLower(n)
-		if !(strings.HasSuffix(ln,".png")||strings.HasSuffix(ln,".jpg")||strings.HasSuffix(ln,".jpeg")||strings.HasSuffix(ln,".webp")||strings.HasSuffix(ln,".svg")) { continue }
+	for _, n := range names {
 		b, err := os.ReadFile(filepath.Join(relayImagesDir(), n)); if err != nil { continue }
 		images = append(images, map[string]string{"filename": n, "data": base64.StdEncoding.EncodeToString(b)})
 		photos = append(photos, map[string]any{"ord": ord, "filename": n, "caption": strings.TrimSuffix(n, filepath.Ext(n))})
@@ -569,16 +636,11 @@ func (app *relayApp) setupPublishHandler(w http.ResponseWriter, r *http.Request)
 }
 
 func (app *relayApp) localPreviewManifest(s setupState) page.Manifest {
-	entries, _ := os.ReadDir(relayImagesDir())
+	names := orderedImageNames()
 	var photos []page.Photo
-	ord := 0
-	for _, e := range entries {
-		if e.IsDir() { continue }
-		n := e.Name(); ln := strings.ToLower(n)
-		if !(strings.HasSuffix(ln,".png")||strings.HasSuffix(ln,".jpg")||strings.HasSuffix(ln,".jpeg")||strings.HasSuffix(ln,".webp")||strings.HasSuffix(ln,".svg")) { continue }
-		photos = append(photos, page.Photo{Ord: ord, Filename: n, Caption: strings.TrimSuffix(n, filepath.Ext(n))})
-		ord++
+	for ord, n := range names {
 		if ord >= 6 { break }
+		photos = append(photos, page.Photo{Ord: ord, Filename: n, Caption: strings.TrimSuffix(n, filepath.Ext(n))})
 	}
 	if s.City == "" { s.City = "Your City" }
 	if s.Region == "" { s.Region = "Region" }
@@ -602,9 +664,13 @@ func (app *relayApp) setupPreviewHandler(w http.ResponseWriter, r *http.Request)
 	if relayInfo.City == "" { relayInfo.City = "Your City" }
 	if relayInfo.Region == "" { relayInfo.Region = "Region" }
 	if relayInfo.CC == "" { relayInfo.CC = "US" }
-	// local stamp if present
+	// local stamp if present, else default
 	if b, err := os.ReadFile(filepath.Join(relayDataDir(), "stamp.svg")); err == nil {
 		relayInfo.StampSVG = template.HTML(string(b))
+	} else if b, err := os.ReadFile(filepath.Join(relayDataDir(), "stamp.png")); err == nil {
+		relayInfo.StampSVG = template.HTML(fmt.Sprintf(`<img src="data:image/png;base64,%s" alt="Stamp">`, base64.StdEncoding.EncodeToString(b)))
+	} else {
+		relayInfo.StampSVG = template.HTML(render.DefaultStampSVG(relayInfo.City, relayInfo.Region, relayInfo.CC))
 	}
 	html, err := render.RenderPage(m, relayInfo)
 	if err != nil { http.Error(w, err.Error(), 500); return }
