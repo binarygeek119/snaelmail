@@ -101,7 +101,11 @@ const pageTemplate = `<!DOCTYPE html>
     .hero-dot { width:10px; height:10px; border-radius:999px; border:0; background:#94a3b8; cursor:pointer; }
     .hero-dot.active { background:#334155; }
     .map { margin: 2rem 0; }
-    .map img { width: 100%; max-height: 520px; object-fit: cover; border-radius: 8px; border: 1px solid #cbd5e1; background:#e2e8f0; }
+    .map-frame { position: relative; width: 100%; height: 520px; overflow: hidden; border-radius: 8px; border: 1px solid #cbd5e1; background:#e2e8f0; }
+    .map-frame img { width: 100%; height: 100%; object-fit: contain; transform-origin: center center; transition: transform .12s ease; cursor: grab; user-select:none; }
+    .map-controls { position:absolute; top:10px; right:10px; display:flex; gap:.35rem; z-index:2; }
+    .map-btn { width:34px; height:34px; border:0; border-radius:8px; background:rgba(15,23,42,.7); color:#fff; font-size:1.1rem; cursor:pointer; }
+    .map-btn:hover { background:rgba(15,23,42,.9); }
     .map-caption { color:#334155; font-size:.9rem; margin-top:.4rem; }
     .about {
       background: var(--highlight);
@@ -206,10 +210,34 @@ const pageTemplate = `<!DOCTYPE html>
   {{end}}
 
   {{if .Manifest.Map}}
-  <section class="map">
+  <section class="map" id="cityMapSection">
     <h2>City Map</h2>
-    <img src="/open-post-offices/{{.Relay.Hostname}}/images/{{.Manifest.Map.Filename}}" alt="{{if .Manifest.Map.Caption}}{{.Manifest.Map.Caption}}{{else}}{{.Relay.City}} map{{end}}">
+    <div class="map-frame" id="mapFrame">
+      <div class="map-controls">
+        <button class="map-btn" type="button" onclick="mapZoom(1)" aria-label="Zoom in">+</button>
+        <button class="map-btn" type="button" onclick="mapZoom(-1)" aria-label="Zoom out">−</button>
+        <button class="map-btn" type="button" onclick="mapReset()" aria-label="Reset zoom">⟳</button>
+      </div>
+      <img id="cityMapImg" src="/open-post-offices/{{.Relay.Hostname}}/images/{{.Manifest.Map.Filename}}" alt="{{if .Manifest.Map.Caption}}{{.Manifest.Map.Caption}}{{else}}{{.Relay.City}} map{{end}}">
+    </div>
     {{if .Manifest.Map.Caption}}<div class="map-caption">{{.Manifest.Map.Caption}}</div>{{end}}
+    <script>
+      (function(){
+        var img=document.getElementById('cityMapImg'); var frame=document.getElementById('mapFrame');
+        if(!img||!frame) return;
+        var scale=1, x=0, y=0, dragging=false, sx=0, sy=0, ox=0, oy=0;
+        function apply(){ img.style.transform='translate('+x+'px,'+y+'px) scale('+scale+')'; img.style.cursor=scale>1?'grab':'default'; }
+        window.mapZoom=function(dir){ scale=Math.min(5,Math.max(1, +(scale + dir*0.25).toFixed(2))); if(scale===1){x=0;y=0;} apply(); };
+        window.mapReset=function(){ scale=1;x=0;y=0;apply(); };
+        frame.addEventListener('wheel', function(e){ e.preventDefault(); var d=e.deltaY<0?1:-1; window.mapZoom(d); }, {passive:false});
+        img.addEventListener('mousedown', function(e){ if(scale<=1) return; dragging=true; sx=e.clientX; sy=e.clientY; ox=x; oy=y; img.style.cursor='grabbing'; e.preventDefault(); });
+        window.addEventListener('mousemove', function(e){ if(!dragging) return; x=ox+(e.clientX-sx); y=oy+(e.clientY-sy); apply(); });
+        window.addEventListener('mouseup', function(){ dragging=false; apply(); });
+        img.addEventListener('touchstart', function(e){ if(scale<=1||!e.touches[0]) return; dragging=true; sx=e.touches[0].clientX; sy=e.touches[0].clientY; ox=x; oy=y; }, {passive:true});
+        window.addEventListener('touchmove', function(e){ if(!dragging||!e.touches[0]) return; x=ox+(e.touches[0].clientX-sx); y=oy+(e.touches[0].clientY-sy); apply(); }, {passive:true});
+        window.addEventListener('touchend', function(){ dragging=false; });
+      })();
+    </script>
   </section>
   {{end}}
 
