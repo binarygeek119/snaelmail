@@ -246,6 +246,7 @@ func main() {
 	mux.HandleFunc("GET /api/admin/stats", app.handleAdminStats)
 	mux.HandleFunc("GET /api/admin/users", app.handleAdminUsers)
 	mux.HandleFunc("GET /api/admin/relays", app.handleAdminRelays)
+	mux.HandleFunc("GET /api/admin/post-office-preview/{hostname}", app.apiAdminPreviewPostOffice)
 	mux.HandleFunc("GET /api/admin/letters", app.handleAdminLetters)
 	mux.HandleFunc("GET /api/admin/actions", app.handleAdminActions)
 	mux.HandleFunc("GET /api/users/me", app.handleUserMe)

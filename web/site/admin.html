@@ -667,8 +667,17 @@
             }
         }
         
-        function viewRelay(hostname) {
-            window.open('/open-post-offices/' + encodeURIComponent(hostname), '_blank');
+        async function viewRelay(hostname) {
+            try {
+                const res = await fetch('/api/admin/post-office-preview/' + encodeURIComponent(hostname), {
+                    headers: { 'Authorization': 'Bearer ' + token }
+                });
+                if (!res.ok) { alert('Failed to load preview'); return; }
+                const html = await res.text();
+                const blob = new Blob([html], {type: 'text/html'});
+                const url = URL.createObjectURL(blob);
+                window.open(url, '_blank');
+            } catch (e) { console.error(e); alert('Failed to load preview'); }
         }
 
         async function activateRelay(id) {

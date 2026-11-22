@@ -57,9 +57,9 @@ func (app *appState) apiPublishPage(w http.ResponseWriter, r *http.Request, rela
 		return
 	}
 
-	// Check relay is active
-	if relay.Status != "active" {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "relay must be active to publish pages"})
+	// Allow publish for pending/unverified so admin/mod can review the full page
+	if relay.Status != "active" && relay.Status != "pending" && relay.Status != "unverified" {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "relay must be active or pending to publish pages"})
 		return
 	}
 
@@ -426,4 +426,25 @@ func (app *appState) apiPublicRelayPage(w http.ResponseWriter, r *http.Request) 
 		"relay": map[string]any{"hostname": relay.Hostname, "city": relay.City, "region": relay.Region, "cc": relay.CC},
 		"page":  p,
 	})
+}
+
+// apiAdminPreviewPostOffice handles GET /api/admin/post-office-preview/{hostname}
+func (app *appState) apiAdminPreviewPostOffice(w http.ResponseWriter, r *http.Request) {
+	_, user := app.requireAdmin(w, r)
+	if user == nil { return }
+	hostname := r.PathValue("hostname")
+	relay, err := app.store.GetRelayByHostname(r.Context(), hostname)
+	if err != nil || relay == nil { http.NotFound(w,r); return }
+	relayInfo := render.RelayInfo{Hostname: relay.Hostname, City: relay.City, Region: relay.Region, CC: relay.CC, Lat: relay.Lat, Lon: relay.Lon, OpenedAt: relay.OpenedAt, LettersCount: relay.LettersPassed,
+		StampSVG: template.HTML(func() string { if strings.TrimSpace(relay.StampSVG)!="" { return relay.StampSVG }; return render.DefaultStampSVG(relay.City, relay.Region, relay.CC) }())}
+	p, err := app.store.GetPageByRelayID(r.Context(), relay.ID)
+	if err != nil { http.Error(w,"database error",500); return }
+	if p == nil {
+		html, err := render.RenderFallback(relayInfo)
+		if err != nil { http.Error(w,"render error",500); return }
+		w.Header().Set("Content-Type","text/html; charset=utf-8"); w.Write(html); return
+	}
+	html, err := render.RenderPage(p.Manifest, relayInfo)
+	if err != nil { http.Error(w,"render error",500); return }
+	w.Header().Set("Content-Type","text/html; charset=utf-8"); w.Write(html)
 }
