@@ -57,8 +57,26 @@ func DeliverEmail(ctx context.Context, from, to, subject, body string, dkimSigna
 
 // tryDeliver attempts delivery to a single MX server
 func tryDeliver(ctx context.Context, host, from, to, subject, body, dkimSignature string) DeliveryResult {
-	// Connect to MX server on port 25
-	conn, err := net.DialTimeout("tcp", host+":25", 30*time.Second)
+	// Resolve MX hostname to IPv4 address
+	ips, err := net.LookupIP(host)
+	if err != nil {
+		return DeliveryResult{Success: false, Error: fmt.Errorf("DNS lookup failed: %w", err), Host: host}
+	}
+
+	var ipv4 net.IP
+	for _, ip := range ips {
+		if ip.To4() != nil {
+			ipv4 = ip.To4()
+			break
+		}
+	}
+
+	if ipv4 == nil {
+		return DeliveryResult{Success: false, Error: fmt.Errorf("no IPv4 address for %s", host), Host: host}
+	}
+
+	// Connect to MX server on port 25 (IPv4 only)
+	conn, err := net.DialTimeout("tcp4", ipv4.String()+":25", 30*time.Second)
 	if err != nil {
 		return DeliveryResult{Success: false, Error: fmt.Errorf("connection failed: %w", err), Host: host}
 	}
