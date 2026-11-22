@@ -321,7 +321,7 @@ input:focus,textarea:focus,select:focus{outline:none;border-color:#667eea;box-sh
       <h2>4. Post Office Stamp</h2>
       <p class="muted">Use the basic vintage stamp template or upload your own SVG/PNG.</p>
       <div style="display:flex;gap:1rem;align-items:center;flex-wrap:wrap;margin:.75rem 0;">
-        <img id="stampPreview" src="/preview" style="width:120px;height:120px;object-fit:contain;border:1px solid #e5e7eb;border-radius:12px;background:#fff;padding:8px;" alt="Stamp preview" onerror="this.style.display='none'">
+        <img id="stampPreview" src="/api/setup/stamp/preview" style="width:120px;height:120px;object-fit:contain;border:1px solid #e5e7eb;border-radius:12px;background:#fff;padding:8px;" alt="Stamp preview">
         <div class="muted">Basic stamp preview uses your local city/region/country. You can also upload a custom stamp.</div>
       </div>
       <input id="stampFile" type="file" accept=".svg,image/svg+xml,image/png" style="width:100%;">
@@ -423,12 +423,12 @@ function onCountryChange(){
 }
 function setSelectValue(id,val){ const el=document.getElementById(id); if(!el) return; if(val && !Array.from(el.options).some(function(o){return o.value===val;})){ const o=document.createElement('option'); o.value=val; o.textContent=val; el.appendChild(o); } if(val!=null) el.value=val; }
 function slugPart(s){ return (s||'').toLowerCase().normalize('NFKD').replace(/[^a-z0-9]+/g,'').slice(0,24); }
-function updateHostname(){ const city=document.getElementById('city').value; const region=document.getElementById('region').value; const cc=(document.getElementById('cc').value||'').toLowerCase().replace(/[^a-z]/g,'').slice(0,2); var mid=slugPart(city)||slugPart(region)||'relay'; if(mid.length<2) mid=(mid+'relay').slice(0,24); if(mid.length>24) mid=mid.slice(0,24); document.getElementById('hostname').value='po-'+mid+'-'+(cc||'xx'); }
+function updateHostname(){ const city=document.getElementById('city').value; const region=document.getElementById('region').value; const cc=(document.getElementById('cc').value||'').toLowerCase().replace(/[^a-z]/g,'').slice(0,2); var mid=slugPart(city)||slugPart(region)||'relay'; if(mid.length<2) mid=(mid+'relay').slice(0,24); if(mid.length>24) mid=mid.slice(0,24); document.getElementById('hostname').value='po-'+mid+'-'+(cc||'xx'); refreshStampPreview(); }
 function showWizard(step){ document.getElementById('dashboardView').classList.add('hidden'); document.getElementById('wizardView').classList.remove('hidden'); document.getElementById('wizardSteps').classList.remove('hidden'); currentStep=step||1; document.querySelectorAll('.wizard-step').forEach(function(el){ el.classList.toggle('hidden', parseInt(el.dataset.step)!==currentStep); }); document.querySelectorAll('#wizardSteps .step').forEach(function(el){ var n=parseInt(el.dataset.step); el.classList.toggle('active',n===currentStep); el.classList.toggle('done',n<currentStep); }); }
 function showDashboard(){ document.getElementById('wizardView').classList.add('hidden'); document.getElementById('wizardSteps').classList.add('hidden'); document.getElementById('dashboardView').classList.remove('hidden'); loadDashboard(); }
 function nextStep(){ if(currentStep<5) showWizard(currentStep+1); if(currentStep===4) refreshStampPreview(); }
 function prevStep(){ if(currentStep>1) showWizard(currentStep-1); }
-function refreshStampPreview(){ var img=document.getElementById('stampPreview'); if(img){ img.src='/preview?ts='+Date.now(); img.style.display='block'; } }
+function refreshStampPreview(){ var img=document.getElementById('stampPreview'); if(img){ img.src='/api/setup/stamp/preview?ts='+Date.now(); } }
 async function loadStatus(){
   if(!dropdownsReady){ initLocationDropdowns(); dropdownsReady=true; }
   const r = await fetch('/api/setup/status'); const d = await r.json();
@@ -796,4 +796,17 @@ func (app *relayApp) setupUploadStampHandler(w http.ResponseWriter, r *http.Requ
 	}
 	if req.StampSVG == "" && req.StampPNGBase64 == "" { writeJSON(w,400,map[string]string{"error":"no stamp data"}); return }
 	writeJSON(w, 200, map[string]string{"status":"ok"})
+}
+
+func (app *relayApp) setupStampPreviewHandler(w http.ResponseWriter, r *http.Request) {
+	s := loadSetupState()
+	if b, err := os.ReadFile(filepath.Join(relayDataDir(), "stamp.svg")); err == nil {
+		w.Header().Set("Content-Type", "image/svg+xml"); _, _ = w.Write(b); return
+	}
+	if b, err := os.ReadFile(filepath.Join(relayDataDir(), "stamp.png")); err == nil {
+		w.Header().Set("Content-Type", "image/png"); _, _ = w.Write(b); return
+	}
+	svg := render.DefaultStampSVG(s.City, s.Region, s.CC)
+	w.Header().Set("Content-Type", "image/svg+xml")
+	_, _ = w.Write([]byte(svg))
 }

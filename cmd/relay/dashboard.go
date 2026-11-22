@@ -28,6 +28,7 @@ func (app *relayApp) setupRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("DELETE /api/setup/images/{name}", app.setupDeleteImageHandler)
 	mux.HandleFunc("POST /api/setup/images/hero", app.setupImageHeroHandler)
 	mux.HandleFunc("POST /api/setup/stamp", app.setupUploadStampHandler)
+	mux.HandleFunc("GET /api/setup/stamp/preview", app.setupStampPreviewHandler)
 	mux.HandleFunc("POST /api/setup/publish", app.setupPublishHandler)
 	mux.HandleFunc("POST /api/setup/copy-central", app.setupCopyCentralHandler)
 	mux.HandleFunc("GET /preview", app.setupPreviewHandler)
