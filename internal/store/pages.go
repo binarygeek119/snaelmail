@@ -42,8 +42,14 @@ func (s *Store) CreatePage(ctx context.Context, relayID uuid.UUID, manifest page
 	var mJSON []byte
 	err = s.pool.QueryRow(ctx, `
 		INSERT INTO pages (relay_id, revision, manifest, sig, status, published_at)
-		VALUES ($1, (SELECT COALESCE(MAX(revision), 0) + 1 FROM pages WHERE relay_id = $1),
-		        $2, $3, $4, $5)
+		VALUES ($1, 1, $2, $3, $4, $5)
+		ON CONFLICT (relay_id) DO UPDATE SET
+			revision = pages.revision + 1,
+			manifest = EXCLUDED.manifest,
+			sig = EXCLUDED.sig,
+			status = EXCLUDED.status,
+			published_at = EXCLUDED.published_at,
+			review_note = NULL
 		RETURNING relay_id, revision, manifest, sig, status, published_at, review_note
 	`, relayID, manifestJSON, signature, status, publishedAt).Scan(
 		&p.RelayID, &p.Revision, &mJSON, &p.Signature, &p.Status,
