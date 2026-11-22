@@ -274,6 +274,10 @@
             const h = s1*s1 + Math.cos(toRad(aLat))*Math.cos(toRad(bLat))*s2*s2;
             return 2 * R * Math.asin(Math.min(1, Math.sqrt(h)));
         }
+        function useMiles(){
+            try { const r = (Intl.DateTimeFormat().resolvedOptions().locale||navigator.language||'').split('-').pop().toUpperCase(); return ['US','GB','LR','MM'].includes(r); } catch(e){ return false; }
+        }
+        function fmtDist(km){ return useMiles() ? (km*0.621371).toFixed(1)+' mi away' : km.toFixed(1)+' km away'; }
 
         function render() {
             const q = (searchEl.value || '').toLowerCase().trim();
@@ -298,7 +302,7 @@
                     </div>
                     <div style="color:#555;margin-top:.25rem;">${[r.region,r.cc].filter(Boolean).join(', ')}</div>
                     <div style="color:#777;font-size:.9rem;margin-top:.35rem;">${r.hostname}</div>
-                    <div style="color:#777;font-size:.85rem;margin-top:.35rem;">${r._dist != null ? r._dist.toFixed(1) + ' km away · ' : ''}${r.letters_passed || 0} letters handled</div>
+                    <div style="color:#777;font-size:.85rem;margin-top:.35rem;">${r._dist != null ? fmtDist(r._dist) + ' · ' : ''}${r.letters_passed || 0} letters handled</div>
                 </a>
             `).join('');
         }

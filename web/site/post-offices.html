@@ -48,14 +48,14 @@
   (function(){
     const list=document.getElementById('list'), status=document.getElementById('status'), q=document.getElementById('q'), near=document.getElementById('near');
     let relays=[], userLoc=null;
-    function distKm(aLat,aLon,bLat,bLon){const R=6371,toRad=d=>d*Math.PI/180;const dLat=toRad(bLat-aLat),dLon=toRad(bLon-aLon);const s1=Math.sin(dLat/2),s2=Math.sin(dLon/2);const h=s1*s1+Math.cos(toRad(aLat))*Math.cos(toRad(bLat))*s2*s2;return 2*R*Math.asin(Math.min(1,Math.sqrt(h)));}
+    function distKm(aLat,aLon,bLat,bLon){const R=6371,toRad=d=>d*Math.PI/180;const dLat=toRad(bLat-aLat),dLon=toRad(bLon-aLon);const s1=Math.sin(dLat/2),s2=Math.sin(dLon/2);const h=s1*s1+Math.cos(toRad(aLat))*Math.cos(toRad(bLat))*s2*s2;return 2*R*Math.asin(Math.min(1,Math.sqrt(h)));} function useMiles(){try{const r=(Intl.DateTimeFormat().resolvedOptions().locale||navigator.language||'').split('-').pop().toUpperCase();return ['US','GB','LR','MM'].includes(r);}catch(e){return false;}} function fmtDist(km){return useMiles()?(km*0.621371).toFixed(1)+' mi away':km.toFixed(1)+' km away';}
     function render(){
       const term=(q.value||'').toLowerCase().trim();
       let items=relays.filter(r=>!term || [r.hostname,r.city,r.region,r.cc].filter(Boolean).join(' ').toLowerCase().includes(term));
       items=items.map(r=>({...r,_dist:userLoc?distKm(userLoc.lat,userLoc.lon,r.lat,r.lon):null}));
       items.sort((a,b)=>{ if(a.central!==b.central) return a.central?-1:1; if(a._dist!=null&&b._dist!=null) return a._dist-b._dist; if(a._dist!=null) return -1; if(b._dist!=null) return 1; return (a.city||'').localeCompare(b.city||''); });
       status.textContent=items.length ? items.length+' post office(s)'+(userLoc?' sorted by distance':'') : 'No post offices found.';
-      list.innerHTML=items.map(r=>`<a class="po ${r.central?'central':''}" href="/open-post-offices/${encodeURIComponent(r.hostname)}"><div style="display:flex;justify-content:space-between;gap:.5rem;"><div class="name">${r.city||r.hostname}</div>${r.central?'<span class="badge">Central</span>':''}</div><div class="meta">${[r.region,r.cc].filter(Boolean).join(', ')}</div><div class="sub">${r.hostname}</div><div class="sub">${r._dist!=null?r._dist.toFixed(1)+' km away · ':''}${r.letters_passed||0} letters handled</div></a>`).join('');
+      list.innerHTML=items.map(r=>`<a class="po ${r.central?'central':''}" href="/open-post-offices/${encodeURIComponent(r.hostname)}"><div style="display:flex;justify-content:space-between;gap:.5rem;"><div class="name">${r.city||r.hostname}</div>${r.central?'<span class="badge">Central</span>':''}</div><div class="meta">${[r.region,r.cc].filter(Boolean).join(', ')}</div><div class="sub">${r.hostname}</div><div class="sub">${r._dist!=null?fmtDist(r._dist)+' · ':''}${r.letters_passed||0} letters handled</div></a>`).join('');
     }
     async function load(){ try{ const res=await fetch('/open-post-offices'); const data=await res.json(); relays=data.relays||[]; render(); }catch(e){ status.textContent='Could not load post offices.'; } }
     q.addEventListener('input',render);
