@@ -216,7 +216,7 @@ pre{background:#0f172a;color:#e2e8f0;padding:1rem;border-radius:8px;overflow:aut
   <div class="card">
     <h2>1. Relay Identity</h2>
     <p class="muted">Generate an Ed25519 keypair for this relay. Keep the private key safe.</p>
-    <div class="row"><button class="btn" onclick="keygen()">Generate Keypair</button></div>
+    <div class="row"><button class="btn" onclick="keygen()">Generate Keypair</button><button class="btn secondary" onclick="exportIdentity()">Export as TXT</button></div>
     <label>Public Key (base64)</label><textarea id="pubkey" rows="2" readonly></textarea>
     <label>Fingerprint</label><input id="fingerprint" readonly>
   </div>
@@ -347,6 +347,21 @@ async function keygen(){
   if(!r.ok){ document.getElementById('result').innerHTML='<div class="err">'+(d.error||r.status)+'</div>'; return; }
   await loadStatus();
   document.getElementById('result').innerHTML='<div class="ok">Keypair generated.</div>';
+}
+function exportIdentity(){
+  const pubkey=document.getElementById('pubkey').value||'';
+  const fp=document.getElementById('fingerprint').value||'';
+  const host=document.getElementById('hostname').value||'';
+  const txt='Snaelmail Relay Identity\n'
+    +'Hostname: '+host+'\n'
+    +'Fingerprint: '+fp+'\n'
+    +'Public Key (base64): '+pubkey+'\n';
+  const blob=new Blob([txt],{type:'text/plain'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download=(host||'relay-identity')+'.txt';
+  document.body.appendChild(a); a.click(); a.remove();
+  URL.revokeObjectURL(a.href);
 }
 async function loadImages(){
   const r = await fetch('/api/setup/images'); const d = await r.json();
