@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
@@ -17,6 +18,26 @@ import (
 	"github.com/google/uuid"
 )
 
+
+func (app *appState) vintageStampsForRelay(ctx context.Context, relayID uuid.UUID) []render.VintageStamp {
+	stamps, err := app.store.GetVintageStampVersions(ctx, relayID)
+	if err != nil || len(stamps) == 0 { return nil }
+	out := make([]render.VintageStamp, 0, len(stamps))
+	for _, sv := range stamps {
+		var svg template.HTML
+		if sv.Format == "svg" && sv.SVGContent != "" {
+			svg = template.HTML(sv.SVGContent)
+		} else if len(sv.PNGContent) > 0 {
+			svg = template.HTML(fmt.Sprintf(`<img src="data:image/png;base64,%s" alt="Stamp v%d">`, base64.StdEncoding.EncodeToString(sv.PNGContent), sv.VersionNum))
+		}
+		ev, ho, in := "", "", ""
+		if sv.Event != nil { ev = *sv.Event }
+		if sv.Honor != nil { ho = *sv.Honor }
+		if sv.Info != nil { in = *sv.Info }
+		out = append(out, render.VintageStamp{VersionNum: sv.VersionNum, SHA256Hex: sv.SHA256Hex, Format: sv.Format, StampSVG: svg, StampDate: sv.StampDate.Format("2006-01-02"), Event: ev, Honor: ho, Info: in})
+	}
+	return out
+}
 // apiPublishPage handles POST /api/relays/:id/publish
 func (app *appState) apiPublishPage(w http.ResponseWriter, r *http.Request, relayID uuid.UUID) {
 	// Decode request body
@@ -205,7 +226,8 @@ func (app *appState) apiOpenPostOffice(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Render page
-	html, err := render.RenderPage(p.Manifest, relayInfo)
+	vintage := app.vintageStampsForRelay(r.Context(), relay.ID)
+	html, err := render.RenderPage(p.Manifest, relayInfo, vintage)
 	if err != nil {
 		log.Printf("render page: %v", err)
 		http.Error(w, "render error", http.StatusInternalServerError)
@@ -289,7 +311,8 @@ func (app *appState) apiPreviewPage(w http.ResponseWriter, r *http.Request, rela
 	}
 
 	// Render preview
-	html, err := render.RenderPage(req.Manifest, relayInfo)
+	vintage := app.vintageStampsForRelay(r.Context(), relay.ID)
+	html, err := render.RenderPage(req.Manifest, relayInfo, vintage)
 	if err != nil {
 		log.Printf("render preview: %v", err)
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "render error"})
@@ -444,7 +467,8 @@ func (app *appState) apiAdminPreviewPostOffice(w http.ResponseWriter, r *http.Re
 		if err != nil { http.Error(w,"render error",500); return }
 		w.Header().Set("Content-Type","text/html; charset=utf-8"); w.Write(html); return
 	}
-	html, err := render.RenderPage(p.Manifest, relayInfo)
+	vintage := app.vintageStampsForRelay(r.Context(), relay.ID)
+	html, err := render.RenderPage(p.Manifest, relayInfo, vintage)
 	if err != nil { http.Error(w,"render error",500); return }
 	w.Header().Set("Content-Type","text/html; charset=utf-8"); w.Write(html)
 }

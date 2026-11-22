@@ -479,3 +479,36 @@ func (app *appState) handleAdminRemoveRelay(w http.ResponseWriter, r *http.Reque
 	}
 	writeJSON(w, http.StatusOK, map[string]string{"status":"success"})
 }
+
+func (app *appState) handleAdminListStamps(w http.ResponseWriter, r *http.Request) {
+	_, user := app.requireAdmin(w, r)
+	if user == nil { return }
+	stamps, err := app.store.ListPendingStampVersions(r.Context())
+	if err != nil { writeJSON(w, 500, map[string]string{"error": err.Error()}); return }
+	writeJSON(w, 200, map[string]any{"stamps": stamps})
+}
+
+func (app *appState) handleAdminApproveStamp(w http.ResponseWriter, r *http.Request) {
+	_, user := app.requireAdmin(w, r)
+	if user == nil { return }
+	id, err := uuid.Parse(r.PathValue("id"))
+	if err != nil { writeJSON(w, 400, map[string]string{"error": "invalid id"}); return }
+	var req struct { MakeCurrent bool `json:"make_current"` }
+	_ = json.NewDecoder(r.Body).Decode(&req)
+	// auto-make current if no current exists
+	sv, err := app.store.GetStampVersion(r.Context(), id)
+	if err != nil || sv == nil { writeJSON(w, 404, map[string]string{"error": "stamp not found"}); return }
+	cur, _ := app.store.GetCurrentStampVersion(r.Context(), sv.RelayID)
+	makeCurrent := req.MakeCurrent || cur == nil
+	if err := app.store.ApproveStampVersion(r.Context(), id, user.ID, makeCurrent); err != nil { writeJSON(w, 500, map[string]string{"error": err.Error()}); return }
+	writeJSON(w, 200, map[string]string{"status":"ok"})
+}
+
+func (app *appState) handleAdminRejectStamp(w http.ResponseWriter, r *http.Request) {
+	_, user := app.requireAdmin(w, r)
+	if user == nil { return }
+	id, err := uuid.Parse(r.PathValue("id"))
+	if err != nil { writeJSON(w, 400, map[string]string{"error": "invalid id"}); return }
+	if err := app.store.RejectStampVersion(r.Context(), id, user.ID); err != nil { writeJSON(w, 500, map[string]string{"error": err.Error()}); return }
+	writeJSON(w, 200, map[string]string{"status":"ok"})
+}

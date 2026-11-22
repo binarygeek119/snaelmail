@@ -350,16 +350,24 @@ input:focus,textarea:focus,select:focus{outline:none;border-color:#667eea;box-sh
 
     <div class="card wizard-step hidden" data-step="5">
       <h2>5. Post Office Stamp</h2>
-      <p class="muted">Use the basic vintage stamp template or upload your own SVG/PNG.</p>
+      <p class="muted">Use the basic vintage stamp template or upload your own SVG/PNG. Each submitted stamp version is hashed, numbered, and must be approved before use. Old stamps are retired (never deleted) and can be shown as vintage stamps.</p>
       <div style="display:flex;gap:1rem;align-items:center;flex-wrap:wrap;margin:.75rem 0;">
-        <img id="stampPreview" src="/api/setup/stamp/preview" style="width:120px;height:120px;object-fit:contain;border:1px solid #e5e7eb;border-radius:12px;background:#fff;padding:8px;" alt="Stamp preview">
-        <div class="muted">Basic stamp preview uses your local city/region/country. You can also upload a custom stamp.</div>
+        <img id="stampPreview" src="/api/setup/stamp/preview" style="width:160px;height:160px;object-fit:contain;border:1px solid #e5e7eb;border-radius:12px;background:#fff;padding:8px;" alt="Stamp preview">
+        <div class="muted">Preview uses your local stamp file. Submitted stamps go to admin/mod approval before becoming active.</div>
       </div>
+      <label>Stamp File (SVG or PNG, transparent recommended)</label>
       <input id="stampFile" type="file" accept=".svg,image/svg+xml,image/png" style="width:100%;">
+      <div class="grid2" style="margin-top:.5rem;">
+        <label>Date <input id="stampDate" type="date"></label>
+        <label>Event (optional)<input id="stampEvent" placeholder="e.g. New York Pride Month"></label>
+        <label>Honor (optional)<input id="stampHonor" placeholder="e.g. Bill Ritter"></label>
+        <label>Info (optional)<input id="stampInfo" placeholder="Any extra info"></label>
+      </div>
       <div class="row" style="margin-top:.5rem;">
-        <button class="btn secondary" type="button" onclick="uploadStamp()">Upload Custom Stamp</button>
+        <button class="btn secondary" type="button" onclick="uploadStamp()">Submit Stamp for Approval</button>
         <span id="stampMsg" class="muted"></span>
       </div>
+      <div id="stampVersions" style="margin-top:.75rem;"></div>
       <div class="row"><button class="btn ghost" onclick="prevStep()">Back</button><button class="btn" onclick="nextStep()">Next: Register</button></div>
     </div>
 
@@ -482,8 +490,10 @@ async function loadStatus(){
   if (s.lat!=null) document.getElementById('lat').value=s.lat;
   if (s.lon!=null) document.getElementById('lon').value=s.lon;
   updateHostname();
+  var sd=document.getElementById('stampDate'); if(sd && !sd.value) sd.value=new Date().toISOString().slice(0,10);
   await loadImages();
   await loadMap();
+  await loadStampVersions();
   if (s.relay_id && s.status === 'registered') { showDashboard(); }
   else { showWizard(currentStep||1); }
 }
@@ -511,7 +521,21 @@ async function deleteImage(name){ await fetch('/api/setup/images/'+encodeURIComp
 async function setHeroImage(name){ await fetch('/api/setup/images/hero',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:name})}); await loadImages(); }
 async function publishImages(){ var target=document.getElementById('imgResult')||document.getElementById('dashMsg'); if(target) target.innerHTML='<div class="muted">Syncing to main site...</div>'; const r=await fetch('/api/setup/publish',{method:'POST'}); const d=await r.json().catch(function(){return {};}); if(!r.ok){ if(target) target.innerHTML='<div class="err">Sync error: '+(d.error||JSON.stringify(d))+'</div>'; return; } if(target) target.innerHTML='<div class="ok">Synced to main site. '+(d.message||'')+'</div>'; }
 async function copyCentral(){ setResult('imgResult','muted','Copying from Central Post Office...'); const r=await fetch('/api/setup/copy-central',{method:'POST'}); const d=await r.json().catch(function(){return {};}); if(!r.ok){ setResult('imgResult','err','Copy error: '+(d.error||JSON.stringify(d))); return; } setResult('imgResult','ok','Copied '+(d.copied_photos||0)+' image(s) from Central Post Office.'); await loadImages(); }
-async function uploadStamp(){ const f=(document.getElementById('stampFile').files||[])[0]; const msg=document.getElementById('stampMsg'); if(!f){ msg.style.color='#b91c1c'; msg.textContent='Choose a stamp file first.'; return; } msg.style.color='#555'; msg.textContent='Uploading...'; const isSVG=f.type==='image/svg+xml'||f.name.toLowerCase().endsWith('.svg'); const body={stamp_svg:'',stamp_png_base64:''}; if(isSVG){ body.stamp_svg=await f.text(); } else { body.stamp_png_base64=await new Promise(function(res,rej){ const r=new FileReader(); r.onload=function(){res(String(r.result).split(',')[1]||'');}; r.onerror=rej; r.readAsDataURL(f); }); } const r=await fetch('/api/setup/stamp',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}); const d=await r.json().catch(function(){return {};}); if(r.ok){ msg.style.color='#16a34a'; msg.textContent='Upload successful. Stamp saved.'; document.getElementById('stampFile').value=''; refreshStampPreview(); } else { msg.style.color='#b91c1c'; msg.textContent='Error: '+(d.error||r.status); } }
+async function loadStampVersions(){
+  var el=document.getElementById('stampVersions'); if(!el) return;
+  var s=setupState||{}; if(!s.main_site||!s.relay_id){ el.innerHTML='<div class="muted">Register relay first to submit stamps for approval.</div>'; return; }
+  try{
+    var r=await fetch('/api/setup/stamp/versions'); var d=await r.json().catch(()=>({}));
+    var stamps=d.stamps||[];
+    if(!stamps.length){ el.innerHTML='<div class="muted">No stamp versions submitted yet.</div>'; return; }
+    el.innerHTML='<div style="font-weight:600;margin-bottom:.35rem;">Stamp Versions</div>'+stamps.map(function(st){
+      var info=[st.event?'<div><strong>Event:</strong> '+st.event+'</div>':'',st.honor?'<div><strong>Honor:</strong> '+st.honor+'</div>':'',st.info?'<div><strong>Info:</strong> '+st.info+'</div>':''].filter(Boolean).join('');
+      var prev=st.format==='svg'&&st.svg_content?'<div style="width:64px;height:64px">'+st.svg_content+'</div>':(st.png_base64?'<img src="data:image/png;base64,'+st.png_base64+'" style="width:64px;height:64px;object-fit:contain">':'');
+      return '<div style="display:flex;gap:.75rem;align-items:flex-start;padding:.5rem;border:1px solid #e5e7eb;border-radius:8px;margin-bottom:.4rem;background:#fff;">'+prev+'<div style="font-size:.85rem;"><div><strong>v'+st.version_num+'</strong> · '+st.status+(st.is_current?' · <span style="color:#667eea;">current</span>':'')+'</div><div class="muted">'+(st.stamp_date||'')+' · '+(st.sha256||'').slice(0,12)+'</div>'+info+'</div></div>';
+    }).join('');
+  }catch(e){ el.innerHTML='<div class="muted">Could not load stamp versions.</div>'; }
+}
+async function uploadStamp(){ const f=(document.getElementById('stampFile').files||[])[0]; const msg=document.getElementById('stampMsg'); if(!f){ msg.style.color='#b91c1c'; msg.textContent='Choose a stamp file first.'; return; } msg.style.color='#555'; msg.textContent='Uploading...'; const isSVG=f.type==='image/svg+xml'||f.name.toLowerCase().endsWith('.svg'); const body={stamp_svg:'',stamp_png_base64:'',event:document.getElementById('stampEvent').value,honor:document.getElementById('stampHonor').value,info:document.getElementById('stampInfo').value,stamp_date:document.getElementById('stampDate').value}; if(isSVG){ body.stamp_svg=await f.text(); } else { body.stamp_png_base64=await new Promise(function(res,rej){ const r=new FileReader(); r.onload=function(){res(String(r.result).split(',')[1]||'');}; r.onerror=rej; r.readAsDataURL(f); }); } const r=await fetch('/api/setup/stamp',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}); const d=await r.json().catch(function(){return {};}); if(r.ok){ msg.style.color='#16a34a'; msg.textContent=d.message||'Stamp submitted for approval.'; document.getElementById('stampFile').value=''; refreshStampPreview(); await loadStampVersions(); } else { msg.style.color='#b91c1c'; msg.textContent='Error: '+(d.error||r.status); } }
 async function registerRelay(){ const body={main_site:document.getElementById('main_site').value,hostname:document.getElementById('hostname').value,city:document.getElementById('city').value,region:document.getElementById('region').value,cc:document.getElementById('cc').value,tz:document.getElementById('tz').value,lat:parseFloat(document.getElementById('lat').value)||0,lon:parseFloat(document.getElementById('lon').value)||0,owner_username:document.getElementById('ownerUsername').value,owner_api_key:document.getElementById('ownerApiKey').value,about:document.getElementById('aboutText').value}; setResult('registerResult','muted','Registering...'); const r=await fetch('/api/setup/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}); const d=await r.json().catch(function(){return {};}); if(!r.ok){ setResult('registerResult','err','Error: '+(d.error||JSON.stringify(d))); await loadStatus(); return; } setResult('registerResult','ok',d.message||'Registered with main site. Relay ID: '+((d.state&&d.state.relay_id)||'')); await loadStatus(); try{ await publishImages(); }catch(e){} showDashboard(); }
 async function loadNotifications(){
   var el=document.getElementById('dashNotifs'); if(!el) return;
@@ -857,7 +881,7 @@ func (app *relayApp) setupPreviewHandler(w http.ResponseWriter, r *http.Request)
 	} else {
 		relayInfo.StampSVG = template.HTML(render.DefaultStampSVG(relayInfo.City, relayInfo.Region, relayInfo.CC))
 	}
-	html, err := render.RenderPage(m, relayInfo)
+	html, err := render.RenderPage(m, relayInfo, nil)
 	if err != nil { http.Error(w, err.Error(), 500); return }
 	// rewrite image URLs to local preview
 	out := strings.ReplaceAll(string(html), "/open-post-offices/"+s.Hostname+"/images/", "/preview/images/")
@@ -924,7 +948,7 @@ func (app *relayApp) setupCopyCentralHandler(w http.ResponseWriter, r *http.Requ
 }
 
 func (app *relayApp) setupUploadStampHandler(w http.ResponseWriter, r *http.Request) {
-	var req struct { StampSVG string `json:"stamp_svg"`; StampPNGBase64 string `json:"stamp_png_base64"` }
+	var req struct { StampSVG string `json:"stamp_svg"`; StampPNGBase64 string `json:"stamp_png_base64"`; Event string `json:"event"`; Honor string `json:"honor"`; Info string `json:"info"`; StampDate string `json:"stamp_date"` }
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil { writeJSON(w, 400, map[string]string{"error":"invalid JSON"}); return }
 	if err := os.MkdirAll(relayDataDir(), 0700); err != nil { writeJSON(w, 500, map[string]string{"error":err.Error()}); return }
 	if req.StampSVG != "" {
@@ -938,7 +962,41 @@ func (app *relayApp) setupUploadStampHandler(w http.ResponseWriter, r *http.Requ
 		if req.StampSVG == "" { _ = os.Remove(filepath.Join(relayDataDir(), "stamp.svg")) }
 	}
 	if req.StampSVG == "" && req.StampPNGBase64 == "" { writeJSON(w,400,map[string]string{"error":"no stamp data"}); return }
-	writeJSON(w, 200, map[string]string{"status":"ok"})
+	// submit to main site for approval if registered
+	s := loadSetupState()
+	if s.MainSite != "" && s.RelayID != "" {
+		payload := map[string]any{"stamp_svg":req.StampSVG,"stamp_png_base64":req.StampPNGBase64,"event":req.Event,"honor":req.Honor,"info":req.Info,"stamp_date":req.StampDate}
+		body, _ := json.Marshal(payload)
+		url := strings.TrimRight(s.MainSite, "/") + "/api/relay/" + s.RelayID + "/stamps"
+		hreq, _ := http.NewRequestWithContext(r.Context(), http.MethodPost, url, bytes.NewReader(body))
+		hreq.Header.Set("Content-Type", "application/json")
+		hreq.Header.Set("X-Relay-Version", Version)
+		client := &http.Client{Timeout: 20 * time.Second}
+		resp, err := client.Do(hreq)
+		if err != nil { writeJSON(w, 502, map[string]string{"error":"saved locally but failed to submit to main site: "+err.Error()}); return }
+		defer resp.Body.Close()
+		rb, _ := io.ReadAll(resp.Body)
+		if resp.StatusCode >= 300 { writeJSON(w, 502, map[string]string{"error":"saved locally but main site rejected stamp: "+string(rb)}); return }
+		writeJSON(w, 200, map[string]string{"status":"ok","message":"Stamp submitted for approval."})
+		return
+	}
+	writeJSON(w, 200, map[string]string{"status":"ok","message":"Stamp saved locally. Register relay to submit for approval."})
+}
+
+func (app *relayApp) setupStampVersionsHandler(w http.ResponseWriter, r *http.Request) {
+	s := loadSetupState()
+	if s.MainSite == "" || s.RelayID == "" { writeJSON(w, 200, map[string]any{"stamps":[]any{}}); return }
+	url := strings.TrimRight(s.MainSite, "/") + "/api/relay/" + s.RelayID + "/stamps"
+	hreq, _ := http.NewRequestWithContext(r.Context(), http.MethodGet, url, nil)
+	hreq.Header.Set("X-Relay-Version", Version)
+	client := &http.Client{Timeout: 15 * time.Second}
+	resp, err := client.Do(hreq)
+	if err != nil { writeJSON(w, 502, map[string]string{"error":err.Error()}); return }
+	defer resp.Body.Close()
+	rb, _ := io.ReadAll(resp.Body)
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(resp.StatusCode)
+	_, _ = w.Write(rb)
 }
 
 func (app *relayApp) setupStampPreviewHandler(w http.ResponseWriter, r *http.Request) {

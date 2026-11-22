@@ -23,11 +23,24 @@ type RelayInfo struct {
 	StampSVG     template.HTML
 }
 
+// VintageStamp is a retired/previous stamp for public display.
+type VintageStamp struct {
+	VersionNum int
+	SHA256Hex  string
+	Format     string
+	StampSVG   template.HTML
+	StampDate  string
+	Event      string
+	Honor      string
+	Info       string
+}
+
 // RenderContext is the data passed to the page template.
 type RenderContext struct {
-	Relay    RelayInfo
-	Manifest page.Manifest
-	Pages    []int // photo ordinals
+	Relay         RelayInfo
+	Manifest      page.Manifest
+	Pages         []int // photo ordinals
+	VintageStamps []VintageStamp
 }
 
 // pageTemplate is the HTML template for public pages.
@@ -100,6 +113,14 @@ const pageTemplate = `<!DOCTYPE html>
       padding: 0;
     }
     .stamp-mark svg, .stamp-mark img { max-width: 100%; max-height: 100%; }
+    .vintage { margin: 1.5rem 0; background: rgba(255,255,255,0.72); border: 1px solid #cbd5e1; border-radius: 10px; padding: 1rem; }
+    .vintage summary { cursor:pointer; font-weight:700; color:#0f172a; }
+    .vintage-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:1rem; margin-top:1rem; }
+    .vintage-item { background:#fff; border:1px solid #e5e7eb; border-radius:10px; padding:.75rem; }
+    .vintage-stamp { width:140px; height:140px; display:flex; align-items:center; justify-content:center; margin:0 auto .5rem auto; }
+    .vintage-stamp svg, .vintage-stamp img { max-width:100%; max-height:100%; width:auto; height:auto; }
+    .vintage-meta { font-size:.85rem; color:#334155; }
+    .vintage-meta div { margin-top:.2rem; }
     .photos { margin: 2rem 0; }
     .hero { position: relative; aspect-ratio: 16/10; overflow: hidden; border-radius: 8px; background: #e2e8f0; }
     .hero img { width: 100%; height: 100%; object-fit: cover; display: block; }
@@ -275,6 +296,29 @@ const pageTemplate = `<!DOCTYPE html>
   </section>
   {{end}}
 
+  {{if .VintageStamps}}
+  <section class="vintage">
+    <details>
+      <summary>Vintage Stamps ({{len .VintageStamps}})</summary>
+      <div class="vintage-grid">
+        {{range .VintageStamps}}
+        <div class="vintage-item">
+          <div class="vintage-stamp">{{.StampSVG}}</div>
+          <div class="vintage-meta">
+            <div><strong>Version v{{.VersionNum}}</strong></div>
+            <div>Date: {{.StampDate}}</div>
+            {{if .Event}}<div><strong>Event:</strong> {{.Event}}</div>{{end}}
+            {{if .Honor}}<div><strong>Honor:</strong> {{.Honor}}</div>{{end}}
+            {{if .Info}}<div><strong>Info:</strong> {{.Info}}</div>{{end}}
+            <div style="color:#64748b;font-size:.75rem;">{{.SHA256Hex}}</div>
+          </div>
+        </div>
+        {{end}}
+      </div>
+    </details>
+  </section>
+  {{end}}
+
 
   {{if .Manifest.Facts}}
   <section class="facts">
@@ -323,15 +367,16 @@ var templateFuncs = template.FuncMap{
 }
 
 // RenderPage renders a page from a manifest and relay info.
-func RenderPage(m page.Manifest, relay RelayInfo) ([]byte, error) {
+func RenderPage(m page.Manifest, relay RelayInfo, vintage []VintageStamp) ([]byte, error) {
 	tmpl, err := template.New("page").Funcs(templateFuncs).Parse(pageTemplate)
 	if err != nil {
 		return nil, fmt.Errorf("parse template: %w", err)
 	}
 
 	ctx := RenderContext{
-		Relay:    relay,
-		Manifest: m,
+		Relay:         relay,
+		Manifest:      m,
+		VintageStamps: vintage,
 	}
 
 	var buf bytes.Buffer
@@ -359,10 +404,10 @@ func RenderFallback(relay RelayInfo) ([]byte, error) {
 		},
 	}
 
-	return RenderPage(m, relay)
+	return RenderPage(m, relay, nil)
 }
 
 // RenderFromPage renders a page from a Page object.
 func RenderFromPage(p *page.Page, relay RelayInfo) ([]byte, error) {
-	return RenderPage(p.Manifest, relay)
+	return RenderPage(p.Manifest, relay, nil)
 }

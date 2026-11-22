@@ -455,6 +455,11 @@ func (app *appState) apiRelayActionRouter(w http.ResponseWriter, r *http.Request
 		return
 	}
 
+	if action == "stamps" && r.Method == http.MethodGet {
+		app.apiListRelayStamps(w, r, id)
+		return
+	}
+
 	if !app.requireRelayVersion(w, r) {
 		return
 	}
@@ -470,6 +475,12 @@ func (app *appState) apiRelayActionRouter(w http.ResponseWriter, r *http.Request
 		app.apiPreviewPage(w, r, id)
 	case "update":
 		app.apiUpdateRelayProfile(w, r, id)
+	case "stamps":
+		if r.Method == http.MethodPost {
+			app.apiSubmitRelayStamp(w, r, id)
+		} else {
+			writeJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "method not allowed"})
+		}
 	case "retire":
 		app.apiRetireRelay(w, r)
 	default:
@@ -484,6 +495,54 @@ func (app *appState) apiMyRelays(w http.ResponseWriter, r *http.Request) {
 	relays, err := app.store.GetRelaysByOwnerID(r.Context(), user.ID)
 	if err != nil { writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()}); return }
 	writeJSON(w, http.StatusOK, map[string]any{"relays": relays})
+}
+
+func (app *appState) apiPostmasterSetCurrentStamp(w http.ResponseWriter, r *http.Request) {
+	_, user := app.validateSession(w, r)
+	if user == nil { return }
+	relayID, err := uuid.Parse(r.PathValue("id"))
+	if err != nil { writeJSON(w,400,map[string]string{"error":"invalid relay id"}); return }
+	stampID, err := uuid.Parse(r.PathValue("stampId"))
+	if err != nil { writeJSON(w,400,map[string]string{"error":"invalid stamp id"}); return }
+	relay, err := app.store.GetRelayByID(r.Context(), relayID)
+	if err != nil || relay == nil { writeJSON(w,404,map[string]string{"error":"relay not found"}); return }
+	if relay.OwnerUserID == nil || *relay.OwnerUserID != user.ID {
+		// allow admin too
+		if !user.IsAdmin { writeJSON(w,403,map[string]string{"error":"forbidden"}); return }
+	}
+	if err := app.store.SetCurrentStampVersion(r.Context(), relayID, stampID); err != nil { writeJSON(w,400,map[string]string{"error":err.Error()}); return }
+	writeJSON(w,200,map[string]string{"status":"ok"})
+}
+
+func (app *appState) apiSubmitRelayStamp(w http.ResponseWriter, r *http.Request, relayID uuid.UUID) {
+	var req struct {
+		StampSVG       string  `json:"stamp_svg"`
+		StampPNGBase64 string  `json:"stamp_png_base64"`
+		Event          *string `json:"event"`
+		Honor          *string `json:"honor"`
+		Info           *string `json:"info"`
+		StampDate      string  `json:"stamp_date"` // YYYY-MM-DD
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil { writeJSON(w,400,map[string]string{"error":"invalid JSON"}); return }
+	relay, err := app.store.GetRelayByID(r.Context(), relayID)
+	if err != nil || relay == nil { writeJSON(w,404,map[string]string{"error":"relay not found"}); return }
+	format := ""; var svg string; var png []byte
+	if strings.TrimSpace(req.StampSVG) != "" { format="svg"; svg=req.StampSVG }
+	if req.StampPNGBase64 != "" { b, err := base64.StdEncoding.DecodeString(req.StampPNGBase64); if err != nil { writeJSON(w,400,map[string]string{"error":"invalid stamp_png_base64"}); return }; png=b; if format=="" { format="png" } }
+	if format == "" { writeJSON(w,400,map[string]string{"error":"no stamp data"}); return }
+	stampDate := time.Now().UTC()
+	if strings.TrimSpace(req.StampDate) != "" { if t, err := time.Parse("2006-01-02", req.StampDate); err == nil { stampDate = t } }
+	clean := func(p *string) *string { if p==nil { return nil }; v:=strings.TrimSpace(*p); if v=="" { return nil }; return &v }
+	sv, err := app.store.CreateStampVersion(r.Context(), relayID, format, svg, png, stampDate, clean(req.Event), clean(req.Honor), clean(req.Info))
+	if err != nil { writeJSON(w,500,map[string]string{"error":err.Error()}); return }
+	writeJSON(w, 201, map[string]any{"status":"pending_approval","stamp": sv})
+}
+
+func (app *appState) apiListRelayStamps(w http.ResponseWriter, r *http.Request, relayID uuid.UUID) {
+	stamps, err := app.store.ListRelayStampVersions(r.Context(), relayID)
+	if err != nil { writeJSON(w,500,map[string]string{"error":err.Error()}); return }
+	// hide rejected from public-ish listing? keep simple
+	writeJSON(w, 200, map[string]any{"stamps": stamps})
 }
 
 // apiOpenPostOffices handles GET /open-post-offices

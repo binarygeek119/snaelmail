@@ -74,10 +74,10 @@
         }
         
         .admin-panel {
-            background: white;
+            background: rgba(255,255,255,0.96);
             padding: 2rem;
-            border-radius: 15px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.12);
         }
         
         .admin-panel h1 {
@@ -115,6 +115,7 @@
             gap: 1rem;
             margin-bottom: 2rem;
             border-bottom: 2px solid #e0e0e0;
+            flex-wrap: wrap;
         }
         
         .tab {
@@ -126,6 +127,7 @@
             cursor: pointer;
             border-bottom: 3px solid transparent;
             transition: all 0.3s;
+            text-decoration: none;
         }
         
         .tab.active {
@@ -252,13 +254,14 @@
             </div>
             
             <div class="tabs">
-                <button class="tab active" data-tab="users">Users</button>
-                <button class="tab" data-tab="relays">Post Offices</button>
-                <button class="tab" data-tab="central">Central Post Office</button>
-                <button class="tab" data-tab="letters">Letters</button>
+                <a class="tab" data-tab="users" href="/admin/users">Users</a>
+                <a class="tab" data-tab="relays" href="/admin/relays">Post Offices</a>
+                <a class="tab" data-tab="central" href="/admin/central">Central Post Office</a>
+                <a class="tab" data-tab="stamps" href="/admin/stamps">Stamps</a>
+                <a class="tab" data-tab="letters" href="/admin/letters">Letters</a>
             </div>
             
-            <div id="users-tab" class="tab-content active">
+            <div id="users-tab" class="tab-content">
                 <div id="usersLoading" class="loading">Loading users...</div>
                 <table id="usersTable" style="display: none;">
                     <thead>
@@ -329,6 +332,10 @@
                             <span style="color:#666;font-size:.9rem;align-self:center;">Or use Save Page to save everything.</span>
                         </div>
 
+                        <label style="display:block;margin:.75rem 0 .25rem;font-weight:600;">City Map (optional)</label>
+                        <div id="centralMapPreview" style="margin:.5rem 0;"></div>
+                        <input id="centralMap" type="file" accept="image/*" style="width:100%;">
+
                         <label style="display:block;margin:.75rem 0 .25rem;font-weight:600;">Post Office Stamp (SVG or PNG)</label>
                         <input id="centralStamp" type="file" accept=".svg,image/svg+xml,image/png" style="width:100%;">
                         <div style="display:flex;gap:.5rem;margin-top:.5rem;">
@@ -344,6 +351,16 @@
                 </div>
             </div>
             
+            <div id="stamps-tab" class="tab-content">
+                <h2 style="margin-bottom:1rem;color:#4b5563;">Stamp Approvals</h2>
+                <p style="color:#666;margin-bottom:1rem;">Review submitted post office stamps. Approve to allow use; reject to decline. Approved stamps can be set as current by the postmaster.</p>
+                <div id="stampsLoading" class="loading">Loading stamps...</div>
+                <table id="stampsTable" style="display:none;">
+                    <thead><tr><th>Post Office</th><th>Version</th><th>Preview</th><th>Info</th><th>Date</th><th>Status</th><th>Actions</th></tr></thead>
+                    <tbody id="stampsBody"></tbody>
+                </table>
+            </div>
+
             <div id="letters-tab" class="tab-content">
                 <div id="lettersLoading" class="loading">Loading letters...</div>
                 <table id="lettersTable" style="display: none;">
@@ -411,17 +428,32 @@
             }
         }
         
-        // Tab switching
+        // Tab switching by URL
+        function tabFromPath() {
+            const p = location.pathname.replace(/\/+$/, '');
+            if (p.endsWith('/admin/relays')) return 'relays';
+            if (p.endsWith('/admin/central')) return 'central';
+            if (p.endsWith('/admin/stamps')) return 'stamps';
+            if (p.endsWith('/admin/letters')) return 'letters';
+            return 'users';
+        }
+        function activateTab(tabName, push) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            const link = document.querySelector('.tab[data-tab="'+tabName+'"]');
+            if (link) link.classList.add('active');
+            const content = document.getElementById(tabName + '-tab');
+            if (content) content.classList.add('active');
+            if (push) history.pushState({}, '', '/admin/' + tabName);
+            if (tabName === 'stamps') loadStamps();
+        }
         document.querySelectorAll('.tab').forEach(tab => {
-            tab.addEventListener('click', () => {
-                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-                document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-                
-                tab.classList.add('active');
-                const tabName = tab.dataset.tab;
-                document.getElementById(tabName + '-tab').classList.add('active');
+            tab.addEventListener('click', (e) => {
+                e.preventDefault();
+                activateTab(tab.dataset.tab, true);
             });
         });
+        window.addEventListener('popstate', () => activateTab(tabFromPath(), false));
         
         // Load users
         async function loadUsers() {
@@ -719,6 +751,7 @@
         
         let centralRelayCache = null;
         let centralPagePhotos = []; // [{filename, caption, existing:true}]
+        let centralPageMap = null; // {filename, caption, existing:true}
 
         // Load central post office
         async function loadCentral() {
@@ -825,12 +858,21 @@
             centralPagePhotos.splice(idx, 1);
             renderCentralPhotos();
         }
+        function renderCentralMap() {
+            const el = document.getElementById('centralMapPreview');
+            if (!el) return;
+            if (!centralPageMap) { el.innerHTML = '<div style="color:#666;font-size:.9rem;">No map uploaded.</div>'; return; }
+            const base = centralRelayCache ? `/open-post-offices/${encodeURIComponent(centralRelayCache.hostname)}/images/` : '';
+            el.innerHTML = `<div style="max-width:360px;border:1px solid #ddd;border-radius:8px;padding:.5rem;background:#fff;"><img src="${base}${encodeURIComponent(centralPageMap.filename)}" style="width:100%;height:180px;object-fit:contain;border-radius:6px;background:#f3f4f6;"><div style="font-size:.8rem;color:#555;margin-top:.35rem;word-break:break-word;">${escapeHtml(centralPageMap.filename)}</div><button class="btn" type="button" style="margin-top:.5rem;background:#dc3545;color:white;" onclick="removeCentralMap()">Remove Map</button></div>`;
+        }
+        function removeCentralMap(){ centralPageMap = null; renderCentralMap(); const inp=document.getElementById('centralMap'); if(inp) inp.value=''; }
 
         async function loadCentralPageEditor(relay) {
             document.getElementById('centralViewLink').href = `/open-post-offices/${encodeURIComponent(relay.hostname)}`;
             let about = `Welcome to the ${relay.city} post office. This is the central hub of the Snaelmail network, where messages begin their journey across virtual post offices around the world. Our team carefully handles every letter, ensuring it travels through the network with care and collects postmarks along the way.`;
             let pmName = 'Postmaster', pmRole = 'Central Post Office', pmBio = 'Keeping the Snaelmail network moving, one letter at a time.';
             centralPagePhotos = [];
+            centralPageMap = null;
             try {
                 const res = await fetch(`/api/admin/relays/${relay.id}/page`, { headers: { 'Authorization': 'Bearer ' + token } });
                 if (res.ok) {
@@ -846,6 +888,8 @@
                         centralPagePhotos = (m.Photos || m.photos || []).slice()
                             .sort((a,b)=>((a.Ord??a.ord??0)-(b.Ord??b.ord??0)))
                             .map(ph => ({ filename: ph.Filename || ph.filename, caption: ph.Caption || ph.caption || '', existing: true }));
+                        const map = m.Map || m.map;
+                        if (map && (map.Filename || map.filename)) centralPageMap = { filename: map.Filename || map.filename, caption: map.Caption || map.caption || '', existing: true };
                     }
                 }
             } catch (e) { console.error(e); }
@@ -854,6 +898,7 @@
             document.getElementById('centralPMRole').value = pmRole;
             document.getElementById('centralPMBio').value = pmBio;
             renderCentralPhotos();
+            renderCentralMap();
             document.getElementById('centralPageMsg').textContent = 'Edit the public page content and click Save Page.';
         }
 
@@ -897,6 +942,16 @@
                 images.push({ filename, data });
                 photos.push({ ord: photos.length, filename, caption: f.name.replace(/\.[^.]+$/, '').slice(0, 120) });
             }
+            const mapFile = (document.getElementById('centralMap').files || [])[0];
+            let mapObj = centralPageMap ? { ord:0, filename: centralPageMap.filename, caption: centralPageMap.caption || '' } : null;
+            if (mapFile) {
+                const ext = (mapFile.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g,'') || 'jpg';
+                const safeExt = ext === 'jpeg' ? 'jpg' : ext;
+                const filename = `map-${Date.now()}.${safeExt}`;
+                const data = await fileToBase64(mapFile);
+                images.push({ filename, data });
+                mapObj = { ord:0, filename, caption: (centralRelayCache.city||'City') + ' map' };
+            }
             const manifest = {
                 photos: photos,
                 about: about,
@@ -920,6 +975,7 @@
                     muted: '#cccccc'
                 }
             };
+            if (mapObj) manifest.map = mapObj;
             try {
                 const response = await fetch(`/api/relay/${centralRelayCache.id}/publish`, {
                     method: 'POST',
@@ -935,6 +991,7 @@
                 msg.style.color = '#16a34a';
                 msg.textContent = 'Upload successful. Page saved (status: ' + (data.status || 'ok') + (data.revision ? ', revision ' + data.revision : '') + ').';
                 document.getElementById('centralPhotos').value = '';
+                const cm=document.getElementById('centralMap'); if(cm) cm.value='';
                 await loadCentralPageEditor(centralRelayCache);
             } catch (e) {
                 console.error(e);
@@ -979,10 +1036,44 @@
             }
         }
         
+        function escapeHtml(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+        async function loadStamps() {
+            try {
+                const res = await fetch('/api/admin/stamps', { headers: { 'Authorization': 'Bearer ' + token }});
+                if (!res.ok) { if (handleAuthError(res)) return; return; }
+                const data = await res.json();
+                const tbody = document.getElementById('stampsBody');
+                tbody.innerHTML = '';
+                (data.stamps || []).forEach(s => {
+                    const preview = s.format === 'svg' && s.svg_content
+                        ? `<div style="width:80px;height:80px;display:flex;align-items:center;justify-content:center;">${s.svg_content}</div>`
+                        : (s.png_base64 ? `<img src="data:image/png;base64,${s.png_base64}" style="width:80px;height:80px;object-fit:contain;">` : '—');
+                    const info = [s.event ? `<div><strong>Event:</strong> ${escapeHtml(s.event)}</div>` : '', s.honor ? `<div><strong>Honor:</strong> ${escapeHtml(s.honor)}</div>` : '', s.info ? `<div><strong>Info:</strong> ${escapeHtml(s.info)}</div>` : ''].filter(Boolean).join('') || '<span style="color:#999">—</span>';
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `<td>${escapeHtml(s.relay_hostname||'')}</td><td>v${s.version_num}<div style="color:#888;font-size:.75rem;">${(s.sha256||'').slice(0,12)}</div></td><td>${preview}</td><td style="font-size:.85rem;">${info}</td><td>${s.stamp_date ? new Date(s.stamp_date).toLocaleDateString() : ''}</td><td><span class="status-badge status-${s.status}">${s.status}</span>${s.is_current?' <span style="font-size:.75rem;color:#667eea;">(current)</span>':''}</td><td>${s.status==='pending'?`<button class="action-btn" style="background:#22c55e;color:white;" onclick="approveStamp('${s.id}',true)">Approve+Current</button> <button class="action-btn" style="background:#16a34a;color:white;" onclick="approveStamp('${s.id}',false)">Approve</button> <button class="action-btn suspend" onclick="rejectStamp('${s.id}')">Reject</button>`:'—'}</td>`;
+                    tbody.appendChild(tr);
+                });
+                document.getElementById('stampsLoading').style.display = 'none';
+                document.getElementById('stampsTable').style.display = (data.stamps||[]).length ? 'table' : 'none';
+                if (!(data.stamps||[]).length) document.getElementById('stampsLoading').style.display = 'block', document.getElementById('stampsLoading').textContent = 'No pending stamps.';
+            } catch(e) { console.error(e); }
+        }
+        async function approveStamp(id, makeCurrent) {
+            if (!confirm((makeCurrent?'Approve and set as current':'Approve')+' this stamp?')) return;
+            const res = await fetch('/api/admin/stamps/'+id+'/approve', {method:'POST', headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'}, body: JSON.stringify({make_current: makeCurrent})});
+            if (res.ok) loadStamps(); else alert('Error approving stamp');
+        }
+        async function rejectStamp(id) {
+            if (!confirm('Reject this stamp?')) return;
+            const res = await fetch('/api/admin/stamps/'+id+'/reject', {method:'POST', headers:{'Authorization':'Bearer '+token}});
+            if (res.ok) loadStamps(); else alert('Error rejecting stamp');
+        }
+
         // Initialize
         (async () => {
             const isAdmin = await checkAdmin();
             if (isAdmin) {
+                activateTab(tabFromPath(), false);
                 loadUsers();
                 loadRelays();
                 loadLetters();

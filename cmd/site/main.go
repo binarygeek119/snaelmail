@@ -176,12 +176,18 @@ func main() {
 		w.Header().Set("Expires", "0")
 		http.ServeFile(w, r, "web/site/settings.html")
 	})
-	mux.HandleFunc("GET /admin.html", func(w http.ResponseWriter, r *http.Request) {
+	adminPage := func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
 		w.Header().Set("Pragma", "no-cache")
 		w.Header().Set("Expires", "0")
 		http.ServeFile(w, r, "web/site/admin.html")
-	})
+	}
+	mux.HandleFunc("GET /admin.html", adminPage)
+	mux.HandleFunc("GET /admin/users", adminPage)
+	mux.HandleFunc("GET /admin/relays", adminPage)
+	mux.HandleFunc("GET /admin/central", adminPage)
+	mux.HandleFunc("GET /admin/stamps", adminPage)
+	mux.HandleFunc("GET /admin/letters", adminPage)
 	mux.HandleFunc("GET /postmaster.html", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
 		w.Header().Set("Pragma", "no-cache")
@@ -237,6 +243,7 @@ func main() {
 	mux.HandleFunc("GET /api/relays/", app.apiRelayRouter)
 	mux.HandleFunc("POST /api/relay/", app.apiRelayActionRouter)
 	mux.HandleFunc("GET /api/postmaster/relays", app.apiMyRelays)
+	mux.HandleFunc("POST /api/postmaster/relays/{id}/stamps/{stampId}/current", app.apiPostmasterSetCurrentStamp)
 	mux.HandleFunc("GET /open-post-offices", app.apiOpenPostOffices)
 	mux.HandleFunc("GET /open-post-offices/", app.apiOpenPostOffice)
 	mux.HandleFunc("GET /api/public/post-office/{hostname}/page", app.apiPublicRelayPage)
@@ -276,6 +283,9 @@ func main() {
 	mux.HandleFunc("GET /api/admin/post-office-preview/{hostname}", app.apiAdminPreviewPostOffice)
 	mux.HandleFunc("GET /api/admin/letters", app.handleAdminLetters)
 	mux.HandleFunc("GET /api/admin/actions", app.handleAdminActions)
+	mux.HandleFunc("GET /api/admin/stamps", app.handleAdminListStamps)
+	mux.HandleFunc("POST /api/admin/stamps/{id}/approve", app.handleAdminApproveStamp)
+	mux.HandleFunc("POST /api/admin/stamps/{id}/reject", app.handleAdminRejectStamp)
 	mux.HandleFunc("GET /api/users/me", app.handleUserMe)
 	
 	// Admin user management

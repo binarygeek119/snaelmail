@@ -45,6 +45,13 @@
     </div>
 
     <div class="card">
+      <h2>Stamp Versions</h2>
+      <p class="muted" style="margin-bottom:.75rem;">View stamp versions for your post offices. Approved/retired stamps can be set back as the current stamp.</p>
+      <label>Post Office<select id="stampRelaySelect" onchange="loadStampVersions()"></select></label>
+      <div id="stampVersions" style="margin-top:1rem;" class="muted">Select a post office.</div>
+    </div>
+
+    <div class="card">
       <h2>Stamp Generator</h2>
       <p class="muted" style="margin-bottom:1rem;">Customize a vintage stamp template. Pick colors and text, then download the SVG.</p>
       <div class="preview">
@@ -200,13 +207,37 @@ function importStampSVG(e){
   r.readAsText(f);
   e.target.value='';
 }
+async function loadStampVersions(){
+  const sel=document.getElementById('stampRelaySelect'); const id=sel?sel.value:''; const el=document.getElementById('stampVersions');
+  if(!id){ el.innerHTML='<div class="muted">Select a post office.</div>'; return; }
+  el.innerHTML='<div class="muted">Loading...</div>';
+  try{
+    const res=await fetch('/api/relay/'+encodeURIComponent(id)+'/stamps');
+    const data=await res.json().catch(()=>({}));
+    const stamps=data.stamps||[];
+    if(!stamps.length){ el.innerHTML='<div class="muted">No stamp versions yet.</div>'; return; }
+    el.innerHTML=stamps.map(st=>{
+      const prev=st.format==='svg'&&st.svg_content?`<div style="width:90px;height:90px;display:flex;align-items:center;justify-content:center;">${st.svg_content}</div>`:(st.png_base64?`<img src="data:image/png;base64,${st.png_base64}" style="width:90px;height:90px;object-fit:contain;">`:'');
+      const info=[st.event?`<div><strong>Event:</strong> ${esc(st.event)}</div>`:'',st.honor?`<div><strong>Honor:</strong> ${esc(st.honor)}</div>`:'',st.info?`<div><strong>Info:</strong> ${esc(st.info)}</div>`:''].filter(Boolean).join('');
+      const canSet=(st.status==='approved'||st.status==='retired') && !st.is_current;
+      return `<div style="display:flex;gap:.75rem;align-items:flex-start;padding:.75rem;border:1px solid #e5e7eb;border-radius:10px;margin-bottom:.5rem;background:#fff;"><div style="width:96px;min-width:96px;">${prev}</div><div style="flex:1;font-size:.9rem;"><div><strong>v${st.version_num}</strong> · ${esc(st.status)}${st.is_current?' · <span style="color:#667eea;font-weight:600;">current</span>':''}</div><div class="muted">Date: ${esc(st.stamp_date||'')} · ${(st.sha256||'').slice(0,12)}</div>${info}${canSet?`<div style="margin-top:.4rem;"><button class="btn btn-primary" style="padding:.35rem .7rem;font-size:.8rem;" onclick="setCurrentStamp('${id}','${st.id}')">Set as Current</button></div>`:''}</div></div>`;
+    }).join('');
+  }catch(e){ el.innerHTML='<div class="muted">Error loading stamp versions.</div>'; }
+}
+async function setCurrentStamp(relayId, stampId){
+  if(!confirm('Set this stamp as the current stamp? The current stamp will be retired.')) return;
+  const res=await fetch('/api/postmaster/relays/'+encodeURIComponent(relayId)+'/stamps/'+encodeURIComponent(stampId)+'/current',{method:'POST',headers:{'Authorization':'Bearer '+token}});
+  if(res.ok){ loadStampVersions(); } else { const d=await res.json().catch(()=>({})); alert('Error: '+(d.error||res.status)); }
+}
 async function loadRelays(){
   try{
     const res=await fetch('/api/postmaster/relays',{headers:{'Authorization':'Bearer '+token}});
     if(!res.ok){ document.getElementById('relays').innerHTML='<div class="muted">Could not load relays.</div>'; return; }
     const data=await res.json(); const relays=data.relays||[];
     if(!relays.length){ document.getElementById('relays').innerHTML='<div class="muted">No relays owned by this account yet.</div>'; return; }
-    document.getElementById('relays').innerHTML=relays.map(r=>`<div class="relay"><div class="name">${r.hostname||r.Hostname}</div><div class="muted">${r.city||r.City||''}, ${r.region||r.Region||''} ${r.cc||r.CC||''}</div><div class="muted">Status: ${r.status||r.Status||''}</div></div>`).join('');
+    document.getElementById('relays').innerHTML=relays.map(r=>`<div class="relay"><div class="name">${esc(r.hostname||r.Hostname||'')}</div><div class="muted">${esc(r.city||r.City||'')}, ${esc(r.region||r.Region||'')} ${esc(r.cc||r.CC||'')}</div><div class="muted">Status: ${esc(r.status||r.Status||'')}</div></div>`).join('');
+    const sel=document.getElementById('stampRelaySelect');
+    if(sel){ sel.innerHTML=relays.map(r=>`<option value="${esc(r.id||r.ID)}">${esc(r.hostname||r.Hostname)}</option>`).join(''); loadStampVersions(); }
   }catch(e){ document.getElementById('relays').innerHTML='<div class="muted">Error loading relays.</div>'; }
 }
 renderStamp(); loadRelays();
