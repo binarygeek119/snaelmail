@@ -62,7 +62,10 @@
             <label>Country Code<input id="sgCC" value="US" oninput="renderStamp()"></label>
             <label>Bottom Text<input id="sgBottom" value="POST OFFICE" oninput="renderStamp()"></label>
             <label>Stroke Color<input id="sgStroke" type="color" value="#4b3f72" oninput="renderStamp()"></label>
-            <label>Text Color<input id="sgText" type="color" value="#3b2d5c" oninput="renderStamp()"></label>
+            <label>SNAELMAIL Color<input id="sgTopColor" type="color" value="#4b3f72" oninput="renderStamp()"></label>
+            <label>City Color<input id="sgCityColor" type="color" value="#3b2d5c" oninput="renderStamp()"></label>
+            <label>Region/Country Color<input id="sgLocColor" type="color" value="#4b3f72" oninput="renderStamp()"></label>
+            <label>Bottom Text Color<input id="sgBottomColor" type="color" value="#4b3f72" oninput="renderStamp()"></label>
             <label>Fill Color<input id="sgFill" type="color" value="#f7f3ea" oninput="renderStamp()"></label>
             <label>Outline Color<input id="sgOutline" type="color" value="#ffffff" oninput="renderStamp()"></label>
           </div>
@@ -78,7 +81,7 @@ const token = localStorage.getItem('authToken');
 if (!token) window.location.href = '/login.html';
 function logout(){ localStorage.removeItem('authToken'); localStorage.removeItem('userId'); window.location.href='/login.html'; }
 function esc(s){ return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
-function genStampSVG(city,region,cc,bottom,stroke,text,fill,outline){
+function genStampSVG(city,region,cc,bottom,stroke,topColor,cityColor,locColor,bottomColor,fill,outline){
   city=(city||'Snaelmail').trim().toUpperCase();
   const loc=((region||'')+' '+(cc||'')).trim().toUpperCase() || 'POST OFFICE';
   bottom=(bottom||'POST OFFICE').trim().toUpperCase();
@@ -92,15 +95,15 @@ function genStampSVG(city,region,cc,bottom,stroke,text,fill,outline){
     <polygon points='${edge}' fill='none' stroke='${stroke}' stroke-width='1.5'/>
     <circle cx='60' cy='60' r='45' stroke='${stroke}' stroke-width='2.2'/>
     <circle cx='60' cy='60' r='41' stroke='${stroke}' stroke-width='1'/>
-    <text x='60' y='38' text-anchor='middle' font-size='7.5' font-family='Georgia,serif' fill='${stroke}' stroke='none' font-weight='700' letter-spacing='1'>SNAELMAIL</text>
-    <text x='60' y='54' text-anchor='middle' font-size='8.5' font-family='Georgia,serif' fill='${text}' stroke='none' font-weight='700'>${esc(city)}</text>
-    <text x='60' y='66' text-anchor='middle' font-size='5.8' font-family='Georgia,serif' fill='${stroke}' stroke='none'>${esc(loc)}</text>
-    <text x='60' y='78' text-anchor='middle' font-size='6.5' font-family='Georgia,serif' fill='${stroke}' stroke='none' font-weight='700' letter-spacing='0.5'>${esc(bottom)}</text>
+    <text x='60' y='38' text-anchor='middle' font-size='7.5' font-family='Georgia,serif' fill='${topColor}' stroke='none' font-weight='700' letter-spacing='1'>SNAELMAIL</text>
+    <text x='60' y='54' text-anchor='middle' font-size='8.5' font-family='Georgia,serif' fill='${cityColor}' stroke='none' font-weight='700'>${esc(city)}</text>
+    <text x='60' y='66' text-anchor='middle' font-size='5.8' font-family='Georgia,serif' fill='${locColor}' stroke='none'>${esc(loc)}</text>
+    <text x='60' y='78' text-anchor='middle' font-size='6.5' font-family='Georgia,serif' fill='${bottomColor}' stroke='none' font-weight='700' letter-spacing='0.5'>${esc(bottom)}</text>
   </g>
 </svg>`;
 }
 function renderStamp(){
-  const svg=genStampSVG(document.getElementById('sgCity').value,document.getElementById('sgRegion').value,document.getElementById('sgCC').value,document.getElementById('sgBottom').value,document.getElementById('sgStroke').value,document.getElementById('sgText').value,document.getElementById('sgFill').value,document.getElementById('sgOutline').value);
+  const svg=genStampSVG(document.getElementById('sgCity').value,document.getElementById('sgRegion').value,document.getElementById('sgCC').value,document.getElementById('sgBottom').value,document.getElementById('sgStroke').value,document.getElementById('sgTopColor').value,document.getElementById('sgCityColor').value,document.getElementById('sgLocColor').value,document.getElementById('sgBottomColor').value,document.getElementById('sgFill').value,document.getElementById('sgOutline').value);
   document.getElementById('stampPreview').innerHTML=svg;
   document.getElementById('svgOut').value=svg;
 }
