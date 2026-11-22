@@ -179,12 +179,12 @@
                         <input type="text" id="city" name="city">
                     </div>
                     <div class="setting-item">
-                        <label for="state">State / Province</label>
-                        <input type="text" id="state" name="state">
+                        <label for="country">Country</label>
+                        <select id="country" name="country" onchange="onSettingsCountryChange()"></select>
                     </div>
                     <div class="setting-item">
-                        <label for="country">Country</label>
-                        <input type="text" id="country" name="country">
+                        <label for="state">State / Province</label>
+                        <select id="state" name="state"></select>
                     </div>
                 </div>
 
@@ -227,12 +227,18 @@
                     
                     <div class="setting-item">
                         <label for="imapHost">IMAP Server</label>
-                        <input type="text" id="imapHost" name="imapHost" value="imap.snaelmail.org" readonly>
+                        <div style="display:flex;gap:.5rem;">
+                            <input type="text" id="imapHost" name="imapHost" value="imap.snaelmail.org" readonly>
+                            <button type="button" class="btn btn-secondary" style="width:auto;padding:.5rem .75rem;" onclick="copyValue('imapHost',this)">Copy</button>
+                        </div>
                     </div>
                     
                     <div class="setting-item">
                         <label for="imapPort">IMAP Port</label>
-                        <input type="text" id="imapPort" name="imapPort" value="993" readonly>
+                        <div style="display:flex;gap:.5rem;">
+                            <input type="text" id="imapPort" name="imapPort" value="993" readonly>
+                            <button type="button" class="btn btn-secondary" style="width:auto;padding:.5rem .75rem;" onclick="copyValue('imapPort',this)">Copy</button>
+                        </div>
                     </div>
                 </div>
 
@@ -255,12 +261,18 @@
 
                     <div class="setting-item">
                         <label for="popHost">POP3 Server</label>
-                        <input type="text" id="popHost" name="popHost" value="pop.snaelmail.org" readonly>
+                        <div style="display:flex;gap:.5rem;">
+                            <input type="text" id="popHost" name="popHost" value="pop.snaelmail.org" readonly>
+                            <button type="button" class="btn btn-secondary" style="width:auto;padding:.5rem .75rem;" onclick="copyValue('popHost',this)">Copy</button>
+                        </div>
                     </div>
 
                     <div class="setting-item">
                         <label for="popPort">POP3 Port</label>
-                        <input type="text" id="popPort" name="popPort" value="995" readonly>
+                        <div style="display:flex;gap:.5rem;">
+                            <input type="text" id="popPort" name="popPort" value="995" readonly>
+                            <button type="button" class="btn btn-secondary" style="width:auto;padding:.5rem .75rem;" onclick="copyValue('popPort',this)">Copy</button>
+                        </div>
                     </div>
                 </div>
                 
@@ -293,7 +305,10 @@
                     <p class="setting-description" style="margin-bottom:1rem;">Use this key with your username when setting up a self-hosted relay.</p>
                     <div class="setting-item">
                         <label for="apiKey">API Key</label>
-                        <input type="text" id="apiKey" readonly placeholder="No API key generated">
+                        <div style="display:flex;gap:.5rem;">
+                            <input type="text" id="apiKey" readonly placeholder="No API key generated">
+                            <button type="button" class="btn btn-secondary" style="width:auto;padding:.5rem .75rem;" onclick="copyValue('apiKey',this)">Copy</button>
+                        </div>
                     </div>
                     <button type="button" class="btn btn-primary" onclick="generateApiKey()">Generate / Regenerate API Key</button>
                     <div id="apiKeyMsg" style="margin-top:.5rem;color:#555;"></div>
@@ -307,6 +322,71 @@
     <script>
         const token = localStorage.getItem('authToken');
         const userId = localStorage.getItem('userId');
+
+        async function copyValue(id, btn) {
+            const el = document.getElementById(id);
+            if (!el || !el.value) return;
+            try {
+                await navigator.clipboard.writeText(el.value);
+                const old = btn.textContent;
+                btn.textContent = 'Copied!';
+                setTimeout(() => btn.textContent = old, 1500);
+            } catch (e) {
+                el.select(); document.execCommand('copy');
+                const old = btn.textContent;
+                btn.textContent = 'Copied!';
+                setTimeout(() => btn.textContent = old, 1500);
+            }
+        }
+
+        const COUNTRIES = {
+          "US": {name:"United States", regions:["Alabama","Alaska","Arizona","Arkansas","California","Colorado","Connecticut","Delaware","Florida","Georgia","Hawaii","Idaho","Illinois","Indiana","Iowa","Kansas","Kentucky","Louisiana","Maine","Maryland","Massachusetts","Michigan","Minnesota","Mississippi","Missouri","Montana","Nebraska","Nevada","New Hampshire","New Jersey","New Mexico","New York","North Carolina","North Dakota","Ohio","Oklahoma","Oregon","Pennsylvania","Rhode Island","South Carolina","South Dakota","Tennessee","Texas","Utah","Vermont","Virginia","Washington","West Virginia","Wisconsin","Wyoming","District of Columbia"]},
+          "CA": {name:"Canada", regions:["Alberta","British Columbia","Manitoba","New Brunswick","Newfoundland and Labrador","Nova Scotia","Ontario","Prince Edward Island","Quebec","Saskatchewan","Northwest Territories","Nunavut","Yukon"]},
+          "GB": {name:"United Kingdom", regions:["England","Scotland","Wales","Northern Ireland"]},
+          "AU": {name:"Australia", regions:["New South Wales","Victoria","Queensland","Western Australia","South Australia","Tasmania","Australian Capital Territory","Northern Territory"]},
+          "DE": {name:"Germany", regions:["Baden-Württemberg","Bavaria","Berlin","Brandenburg","Bremen","Hamburg","Hesse","Lower Saxony","Mecklenburg-Vorpommern","North Rhine-Westphalia","Rhineland-Palatinate","Saarland","Saxony","Saxony-Anhalt","Schleswig-Holstein","Thuringia"]},
+          "FR": {name:"France", regions:["Île-de-France","Auvergne-Rhône-Alpes","Nouvelle-Aquitaine","Occitanie","Hauts-de-France","Grand Est","Provence-Alpes-Côte d'Azur","Pays de la Loire","Brittany","Normandy","Bourgogne-Franche-Comté","Centre-Val de Loire","Corsica"]},
+          "NL": {name:"Netherlands", regions:["North Holland","South Holland","Utrecht","Gelderland","North Brabant","Limburg","Overijssel","Groningen","Flevoland","Drenthe","Friesland","Zeeland"]},
+          "SE": {name:"Sweden", regions:["Stockholm","Västra Götaland","Skåne","Uppsala","Östergötland"]},
+          "NO": {name:"Norway", regions:["Oslo","Viken","Vestland","Rogaland","Trøndelag"]},
+          "DK": {name:"Denmark", regions:["Capital Region","Zealand","Central Denmark","Southern Denmark","North Denmark"]},
+          "FI": {name:"Finland", regions:["Uusimaa","Southwest Finland","Pirkanmaa","North Ostrobothnia","Central Finland"]},
+          "IE": {name:"Ireland", regions:["Leinster","Munster","Connacht","Ulster"]},
+          "ES": {name:"Spain", regions:["Madrid","Catalonia","Andalusia","Valencia","Galicia","Castile and León","Basque Country"]},
+          "IT": {name:"Italy", regions:["Lombardy","Lazio","Campania","Sicily","Veneto","Piedmont","Emilia-Romagna","Tuscany"]},
+          "PL": {name:"Poland", regions:["Masovia","Lesser Poland","Greater Poland","Silesia","Pomerania"]},
+          "BR": {name:"Brazil", regions:["São Paulo","Rio de Janeiro","Minas Gerais","Bahia","Paraná","Rio Grande do Sul"]},
+          "MX": {name:"Mexico", regions:["Mexico City","Jalisco","Nuevo León","Puebla","Guanajuato"]},
+          "IN": {name:"India", regions:["Maharashtra","Karnataka","Tamil Nadu","Delhi","Telangana","Uttar Pradesh","Gujarat","West Bengal"]},
+          "JP": {name:"Japan", regions:["Tokyo","Osaka","Kanagawa","Aichi","Hokkaido","Fukuoka"]},
+          "SG": {name:"Singapore", regions:["Singapore"]},
+          "NZ": {name:"New Zealand", regions:["Auckland","Wellington","Canterbury","Waikato","Otago"]},
+          "ZA": {name:"South Africa", regions:["Gauteng","Western Cape","KwaZulu-Natal","Eastern Cape"]},
+          "CH": {name:"Switzerland", regions:["Zurich","Geneva","Bern","Vaud","Basel-Stadt"]},
+          "AT": {name:"Austria", regions:["Vienna","Lower Austria","Upper Austria","Styria","Tyrol"]},
+          "BE": {name:"Belgium", regions:["Flanders","Wallonia","Brussels"]}
+        };
+        function initSettingsLocation() {
+            const cc = document.getElementById('country');
+            cc.innerHTML = '<option value="">Select country</option>' + Object.keys(COUNTRIES).map(c => '<option value="'+c+'">'+c+' - '+COUNTRIES[c].name+'</option>').join('');
+            onSettingsCountryChange();
+        }
+        function onSettingsCountryChange() {
+            const cc = document.getElementById('country').value;
+            const st = document.getElementById('state');
+            const cur = st.value;
+            const list = (COUNTRIES[cc] && COUNTRIES[cc].regions) || [];
+            st.innerHTML = '<option value="">Select state/province</option>' + list.map(r => '<option value="'+r+'">'+r+'</option>').join('');
+            if (list.includes(cur)) st.value = cur;
+        }
+        function setSelectOrAdd(id, val) {
+            const el = document.getElementById(id); if (!el) return;
+            if (!val) { el.value = ''; return; }
+            if (!Array.from(el.options).some(o => o.value === val)) {
+                const o = document.createElement('option'); o.value = val; o.textContent = val; el.appendChild(o);
+            }
+            el.value = val;
+        }
         
         if (!token || !userId) {
             window.location.href = '/login.html';
@@ -343,8 +423,15 @@
                     document.getElementById('autoAddTracking').checked = settings.auto_add_tracking || false;
                     document.getElementById('requireDeliveryConfirmation').checked = settings.request_delivery_confirmation || false;
                     if (data.city !== undefined) document.getElementById('city').value = data.city || '';
-                    if (data.state !== undefined) document.getElementById('state').value = data.state || '';
-                    if (data.country !== undefined) document.getElementById('country').value = data.country || '';
+                initSettingsLocation();
+                let cc = data.country || '';
+                // accept name or code
+                if (cc && !COUNTRIES[cc]) {
+                    const found = Object.keys(COUNTRIES).find(k => COUNTRIES[k].name.toLowerCase() === cc.toLowerCase());
+                    if (found) cc = found;
+                }
+                if (cc) { setSelectOrAdd('country', cc); onSettingsCountryChange(); }
+                if (data.state !== undefined) setSelectOrAdd('state', data.state || '');
                     if (settings.imap_host) {
                         document.getElementById('imapHost').value = settings.imap_host;
                     }
