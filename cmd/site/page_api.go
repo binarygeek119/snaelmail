@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"html/template"
 	"log"
 	"net/http"
 	"strings"
@@ -173,6 +174,7 @@ func (app *appState) apiOpenPostOffice(w http.ResponseWriter, r *http.Request) {
 		Lon:          relay.Lon,
 		OpenedAt:     relay.OpenedAt,
 		LettersCount: relay.LettersPassed,
+		StampSVG:     template.HTML(relay.StampSVG),
 	}
 
 	// Fetch page
@@ -268,6 +270,7 @@ func (app *appState) apiPreviewPage(w http.ResponseWriter, r *http.Request, rela
 		Lon:          relay.Lon,
 		OpenedAt:     relay.OpenedAt,
 		LettersCount: relay.LettersPassed,
+		StampSVG:     template.HTML(relay.StampSVG),
 	}
 
 	// Render preview

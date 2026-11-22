@@ -12,14 +12,15 @@ import (
 
 // RelayInfo is the relay metadata passed to the template.
 type RelayInfo struct {
-	Hostname    string
-	City        string
-	Region      string
-	CC          string
-	Lat         float64
-	Lon         float64
-	OpenedAt    *time.Time
+	Hostname     string
+	City         string
+	Region       string
+	CC           string
+	Lat          float64
+	Lon          float64
+	OpenedAt     *time.Time
 	LettersCount int64
+	StampSVG     template.HTML
 }
 
 // RenderContext is the data passed to the page template.
@@ -65,6 +66,25 @@ const pageTemplate = `<!DOCTYPE html>
       color: var(--muted);
       font-size: 0.9rem;
     }
+    .stamp {
+      margin: 1.5rem 0;
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+    .stamp-mark {
+      width: 140px;
+      height: 140px;
+      border: 2px solid var(--muted);
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: white;
+      padding: 8px;
+    }
+    .stamp-mark svg, .stamp-mark img { max-width: 100%; max-height: 100%; }
     .photos {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
@@ -144,6 +164,16 @@ const pageTemplate = `<!DOCTYPE html>
       · {{.Relay.LettersCount}} letters handled
     </div>
   </header>
+
+  {{if .Relay.StampSVG}}
+  <section class="stamp">
+    <div class="stamp-mark">{{.Relay.StampSVG}}</div>
+    <div>
+      <h2 style="margin:0;color:var(--secondary);">Post Office Stamp</h2>
+      <p class="meta" style="margin:.25rem 0 0 0;">Official stamp of {{.Relay.City}} Post Office</p>
+    </div>
+  </section>
+  {{end}}
 
   <section class="photos">
     {{range .Manifest.Photos}}
