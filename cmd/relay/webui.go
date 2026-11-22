@@ -233,7 +233,12 @@ pre{background:#0f172a;color:#e2e8f0;padding:1rem;border-radius:8px;overflow:aut
       <label>Longitude<input id="lon" type="number" step="any" placeholder="-93.6250"></label>
     </div>
     <p class="muted" style="margin-top:.25rem;">Find your coordinates at <a href="https://www.latlong.net/" target="_blank" rel="noopener">latlong.net</a>.</p>
-    <label>Stamp SVG (optional)</label><textarea id="stamp_svg" rows="4" placeholder="<svg ...>...</svg>"></textarea>
+    <label style="display:block;margin:.75rem 0 .25rem;font-weight:600;">Post Office Stamp (SVG or PNG)</label>
+    <input id="stampFile" type="file" accept=".svg,image/svg+xml,image/png" style="width:100%;">
+    <div class="row" style="margin-top:.5rem;">
+      <button class="btn secondary" type="button" onclick="uploadStamp()">Upload Stamp</button>
+      <span id="stampMsg" class="muted"></span>
+    </div>
     <div class="row"><button class="btn" onclick="registerRelay()">Register / Open Post Office</button></div>
     <div id="result" style="margin-top:.75rem;"></div>
   </div>
@@ -250,11 +255,9 @@ pre{background:#0f172a;color:#e2e8f0;padding:1rem;border-radius:8px;overflow:aut
     <div id="imgResult" style="margin-top:.75rem;"></div>
     <div id="imgList" style="display:flex;flex-wrap:wrap;gap:.75rem;margin-top:.75rem;"></div>
   </div>
-  <div class="card">
-    <h2>Setup State</h2>
-    <pre id="state"></pre>
-  </div>
+
 </div>
+<div id="verBadge" style="position:fixed;bottom:10px;right:10px;background:rgba(79,70,229,.9);color:#fff;padding:8px 12px;border-radius:6px;font-size:.85rem;font-weight:500;box-shadow:0 2px 8px rgba(0,0,0,.15);z-index:1000;">vdev</div>
 <script>
 const TZ_LIST = ["UTC","America/New_York","America/Chicago","America/Denver","America/Los_Angeles","America/Anchorage","Pacific/Honolulu","America/Toronto","America/Vancouver","America/Sao_Paulo","Europe/London","Europe/Paris","Europe/Berlin","Europe/Madrid","Europe/Rome","Europe/Amsterdam","Europe/Stockholm","Europe/Warsaw","Europe/Athens","Europe/Helsinki","Africa/Cairo","Africa/Johannesburg","Asia/Dubai","Asia/Kolkata","Asia/Singapore","Asia/Tokyo","Asia/Seoul","Asia/Shanghai","Asia/Hong_Kong","Australia/Sydney","Australia/Melbourne","Pacific/Auckland"];
 const COUNTRIES = {
@@ -324,6 +327,7 @@ async function loadStatus(){
   const r = await fetch('/api/setup/status'); const d = await r.json();
   const s = d.state || {};
   document.getElementById('status').innerHTML = 'Relay version: <b>'+(d.version||'dev')+'</b> · Status: <b>'+(s.status||'not configured')+'</b>';
+  document.getElementById('verBadge').textContent = (d.version||'dev');
   document.getElementById('main_site').value = 'https://snaelmail.org';
   if (s.city!=null) document.getElementById('city').value=s.city;
   setSelectValue('tz', s.tz || 'UTC');
@@ -336,7 +340,6 @@ async function loadStatus(){
   if (s.lat!=null) document.getElementById('lat').value=s.lat;
   if (s.lon!=null) document.getElementById('lon').value=s.lon;
   updateHostname();
-  document.getElementById('state').textContent = JSON.stringify(d, null, 2);
   await loadImages();
 }
 async function keygen(){
@@ -386,6 +389,20 @@ async function copyCentral(){
   if(!r.ok){ document.getElementById('imgResult').innerHTML='<div class="err">Copy error: '+(d.error||JSON.stringify(d))+'</div>'; return; }
   document.getElementById('imgResult').innerHTML='<div class="ok">Copied '+(d.copied_photos||0)+' image(s) from Central Post Office.</div>';
   await loadImages();
+}
+async function uploadStamp(){
+  const f = (document.getElementById('stampFile').files||[])[0];
+  const msg = document.getElementById('stampMsg');
+  if(!f){ msg.style.color='#b91c1c'; msg.textContent='Choose a stamp file first.'; return; }
+  msg.style.color='#555'; msg.textContent='Uploading...';
+  const isSVG = f.type === 'image/svg+xml' || f.name.toLowerCase().endsWith('.svg');
+  const body = {stamp_svg:'', stamp_png_base64:''};
+  if(isSVG){ body.stamp_svg = await f.text(); }
+  else { body.stamp_png_base64 = await new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(String(r.result).split(',')[1]||''); r.onerror=rej; r.readAsDataURL(f); }); }
+  const r = await fetch('/api/setup/stamp',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  const d = await r.json().catch(()=>({}));
+  if(r.ok){ msg.style.color='#16a34a'; msg.textContent='Upload successful. Stamp saved.'; document.getElementById('stampFile').value=''; }
+  else { msg.style.color='#b91c1c'; msg.textContent='Error: '+(d.error||r.status); }
 }
 async function registerRelay(){
   const body = {
@@ -638,4 +655,22 @@ func (app *relayApp) setupCopyCentralHandler(w http.ResponseWriter, r *http.Requ
 	mb, _ := json.MarshalIndent(m, "", "  ")
 	_ = os.WriteFile(filepath.Join(relayDataDir(), "central-template.json"), mb, 0600)
 	writeJSON(w, http.StatusOK, map[string]any{"status":"ok","copied_photos":len(m.Photos),"about":m.About})
+}
+
+func (app *relayApp) setupUploadStampHandler(w http.ResponseWriter, r *http.Request) {
+	var req struct { StampSVG string `json:"stamp_svg"`; StampPNGBase64 string `json:"stamp_png_base64"` }
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil { writeJSON(w, 400, map[string]string{"error":"invalid JSON"}); return }
+	if err := os.MkdirAll(relayDataDir(), 0700); err != nil { writeJSON(w, 500, map[string]string{"error":err.Error()}); return }
+	if req.StampSVG != "" {
+		if err := os.WriteFile(filepath.Join(relayDataDir(), "stamp.svg"), []byte(req.StampSVG), 0644); err != nil { writeJSON(w,500,map[string]string{"error":err.Error()}); return }
+		_ = os.Remove(filepath.Join(relayDataDir(), "stamp.png"))
+	}
+	if req.StampPNGBase64 != "" {
+		b, err := base64.StdEncoding.DecodeString(req.StampPNGBase64)
+		if err != nil { writeJSON(w,400,map[string]string{"error":"invalid stamp_png_base64"}); return }
+		if err := os.WriteFile(filepath.Join(relayDataDir(), "stamp.png"), b, 0644); err != nil { writeJSON(w,500,map[string]string{"error":err.Error()}); return }
+		if req.StampSVG == "" { _ = os.Remove(filepath.Join(relayDataDir(), "stamp.svg")) }
+	}
+	if req.StampSVG == "" && req.StampPNGBase64 == "" { writeJSON(w,400,map[string]string{"error":"no stamp data"}); return }
+	writeJSON(w, 200, map[string]string{"status":"ok"})
 }
