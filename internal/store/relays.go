@@ -3,6 +3,8 @@ package store
 import (
 	"context"
 	"crypto/ed25519"
+	"crypto/rand"
+	"crypto/sha256"
 	"errors"
 	"fmt"
 	"time"
@@ -354,4 +356,38 @@ func (s *Store) GetRelayByBranchAPIKey(ctx context.Context, key string) (*Relay,
 		return nil, fmt.Errorf("get relay by branch api key: %w", err)
 	}
 	return &r, nil
+}
+
+// EnsureCentralRelay creates the central post office if it does not exist.
+func (s *Store) EnsureCentralRelay(ctx context.Context) error {
+	var exists bool
+	if err := s.pool.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM relays WHERE central = true)`).Scan(&exists); err != nil {
+		return err
+	}
+	if exists {
+		return nil
+	}
+	pub, _, err := ed25519.GenerateKey(rand.Reader)
+	if err != nil {
+		return fmt.Errorf("generate central key: %w", err)
+	}
+	keyFpr := sha256.Sum256(pub)
+	stampSVG := `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 120'>
+  <defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0%' stop-color='#667eea'/><stop offset='100%' stop-color='#764ba2'/></linearGradient></defs>
+  <circle cx='60' cy='60' r='54' fill='none' stroke='url(#g)' stroke-width='6'/>
+  <circle cx='60' cy='60' r='46' fill='none' stroke='#764ba2' stroke-width='2'/>
+  <text x='60' y='52' text-anchor='middle' font-size='14' font-family='Georgia,serif' fill='#3b2d5c' font-weight='700'>SNAELMAIL</text>
+  <text x='60' y='68' text-anchor='middle' font-size='10' font-family='Georgia,serif' fill='#5b4b7a'>CENTRAL POST</text>
+  <text x='60' y='80' text-anchor='middle' font-size='8' font-family='Georgia,serif' fill='#5b4b7a'>OFFICE</text>
+</svg>`
+	stampSHA := sha256.Sum256([]byte(stampSVG))
+	_, err = s.pool.Exec(ctx, `
+		INSERT INTO relays (
+			id, hostname, pubkey, key_fpr, city, region, cc, lat, lon, tz,
+			stamp_svg, stamp_png, stamp_sha256, plate_json, plate_sig,
+			status, official, paused, central, opened_at, letters_passed, complaints_30d
+		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,NULL,NULL,'active',true,false,true,now(),0,0)
+		ON CONFLICT (hostname) DO UPDATE SET central=true, status='active', official=true
+	`, uuid.New(), "central.snaelmail.org", []byte(pub), keyFpr[:], "Snaelmail Central", "Internet", "US", 40.7128, -74.0060, "UTC", stampSVG, []byte{}, stampSHA[:])
+	return err
 }

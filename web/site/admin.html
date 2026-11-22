@@ -298,6 +298,15 @@
                     <div class="section">
                         <h3>Central Post Office Information</h3>
                         <div id="centralInfo"></div>
+                        <div style="margin-top:1rem;display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:.5rem;">
+                            <label>City<input id="centralCity" style="width:100%;padding:.5rem;border:1px solid #ddd;border-radius:6px;"></label>
+                            <label>Region<input id="centralRegion" style="width:100%;padding:.5rem;border:1px solid #ddd;border-radius:6px;"></label>
+                            <label>Country<input id="centralCC" style="width:100%;padding:.5rem;border:1px solid #ddd;border-radius:6px;"></label>
+                            <label>Latitude<input id="centralLat" type="number" step="any" style="width:100%;padding:.5rem;border:1px solid #ddd;border-radius:6px;"></label>
+                            <label>Longitude<input id="centralLon" type="number" step="any" style="width:100%;padding:.5rem;border:1px solid #ddd;border-radius:6px;"></label>
+                        </div>
+                        <button class="btn" style="margin-top:.75rem;" onclick="saveCentralLocation()">Save Location</button>
+                        <span id="centralLocMsg" style="margin-left:.75rem;color:#555;"></span>
                     </div>
                     <div class="section" style="margin-top:1rem;">
                         <h3>Edit Public Page</h3>
@@ -695,6 +704,11 @@
                     <p><strong>Letters Handled:</strong> ${centralRelay.letters_passed || 0}</p>
                     <p><strong>Public page:</strong> <a href="/open-post-offices/${encodeURIComponent(centralRelay.hostname)}" target="_blank">/open-post-offices/${centralRelay.hostname}</a></p>
                 `;
+                document.getElementById('centralCity').value = centralRelay.city || '';
+                document.getElementById('centralRegion').value = centralRelay.region || '';
+                document.getElementById('centralCC').value = centralRelay.cc || '';
+                document.getElementById('centralLat').value = centralRelay.lat ?? '';
+                document.getElementById('centralLon').value = centralRelay.lon ?? '';
                 loading.style.display = 'none';
                 content.style.display = 'block';
                 await loadCentralPageEditor(centralRelay);
@@ -704,6 +718,30 @@
             }
         }
         
+        async function saveCentralLocation() {
+            if (!centralRelayCache) return;
+            const msg = document.getElementById('centralLocMsg');
+            msg.textContent = 'Saving...';
+            try {
+                const response = await fetch(`/api/admin/relays/${centralRelayCache.id}/location`, {
+                    method: 'POST',
+                    headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        city: document.getElementById('centralCity').value.trim(),
+                        region: document.getElementById('centralRegion').value.trim(),
+                        cc: document.getElementById('centralCC').value.trim(),
+                        lat: parseFloat(document.getElementById('centralLat').value) || 0,
+                        lon: parseFloat(document.getElementById('centralLon').value) || 0,
+                        tz: 'UTC'
+                    })
+                });
+                const data = await response.json().catch(() => ({}));
+                if (!response.ok) { msg.textContent = 'Error: ' + (data.error || response.status); return; }
+                msg.textContent = 'Saved.';
+                await loadCentral();
+            } catch (e) { msg.textContent = 'Error saving location.'; }
+        }
+
         async function loadCentralPageEditor(relay) {
             document.getElementById('centralViewLink').href = `/open-post-offices/${encodeURIComponent(relay.hostname)}`;
             document.getElementById('centralAbout').value = `Welcome to the ${relay.city} post office. This is the central hub of the Snaelmail network, where messages begin their journey across virtual post offices around the world. Our team carefully handles every letter, ensuring it travels through the network with care and collects postmarks along the way.`;
