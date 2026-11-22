@@ -851,13 +851,15 @@
 
         async function uploadCentralImages() {
             const files = document.getElementById('centralPhotos').files || [];
-            if (!files.length) { document.getElementById('centralPageMsg').textContent = 'Choose image files first.'; return; }
+            const msg = document.getElementById('centralPageMsg');
+            if (!files.length) { msg.style.color = '#b91c1c'; msg.textContent = 'Choose image files first.'; return; }
             await saveCentralPage();
         }
 
         async function saveCentralPage() {
             if (!centralRelayCache) { alert('Central relay not loaded'); return; }
             const msg = document.getElementById('centralPageMsg');
+            msg.style.color = '#555';
             msg.textContent = 'Saving...';
             const about = document.getElementById('centralAbout').value.trim();
             const existing = centralPagePhotos.slice(0, 6);
@@ -909,14 +911,17 @@
                 });
                 const data = await response.json().catch(() => ({}));
                 if (!response.ok) {
+                    msg.style.color = '#b91c1c';
                     msg.textContent = 'Error: ' + (data.error || response.status);
                     return;
                 }
-                msg.textContent = 'Page saved. Status: ' + (data.status || 'ok') + (data.revision ? ' (revision ' + data.revision + ')' : '');
+                msg.style.color = '#16a34a';
+                msg.textContent = 'Upload successful. Page saved (status: ' + (data.status || 'ok') + (data.revision ? ', revision ' + data.revision : '') + ').';
                 document.getElementById('centralPhotos').value = '';
                 await loadCentralPageEditor(centralRelayCache);
             } catch (e) {
                 console.error(e);
+                msg.style.color = '#b91c1c';
                 msg.textContent = 'Error saving page.';
             }
         }
@@ -925,7 +930,8 @@
             if (!centralRelayCache) return;
             const msg = document.getElementById('centralStampMsg');
             const f = (document.getElementById('centralStamp').files || [])[0];
-            if (!f) { msg.textContent = 'Choose a stamp file first.'; return; }
+            if (!f) { msg.style.color = '#b91c1c'; msg.textContent = 'Choose a stamp file first.'; return; }
+            msg.style.color = '#555';
             msg.textContent = 'Uploading...';
             try {
                 const isSVG = f.type === 'image/svg+xml' || f.name.toLowerCase().endsWith('.svg');
@@ -941,9 +947,17 @@
                     body: JSON.stringify(body)
                 });
                 const data = await response.json().catch(() => ({}));
-                msg.textContent = response.ok ? 'Stamp updated.' : ('Error: ' + (data.error || response.status));
+                if (response.ok) {
+                    msg.style.color = '#16a34a';
+                    msg.textContent = 'Upload successful. Stamp updated.';
+                    document.getElementById('centralStamp').value = '';
+                } else {
+                    msg.style.color = '#b91c1c';
+                    msg.textContent = 'Error: ' + (data.error || response.status);
+                }
             } catch (e) {
                 console.error(e);
+                msg.style.color = '#b91c1c';
                 msg.textContent = 'Error uploading stamp.';
             }
         }
