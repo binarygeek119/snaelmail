@@ -284,7 +284,7 @@ pre{background:#0f172a;color:#e2e8f0;padding:1rem;border-radius:8px;overflow:aut
       <button class="btn secondary" type="button" onclick="uploadStamp()">Upload Stamp</button>
       <span id="stampMsg" class="muted"></span>
     </div>
-    <div class="row"><button class="btn" onclick="registerRelay()">Register / Open Post Office</button></div>
+    <div class="row"><button class="btn" onclick="registerRelay()">Register / Open Post Office</button><button class="btn secondary" onclick="updateRelayInfo()">Update Info</button></div>
     <div id="result" style="margin-top:.75rem;"></div>
   </div>
   <div class="card">
@@ -479,16 +479,32 @@ async function registerRelay(){
     cc: document.getElementById('cc').value,
     tz: document.getElementById('tz').value,
     lat: parseFloat(document.getElementById('lat').value)||0,
-    lon: parseFloat(document.getElementById('lon').value)||0,
-    stamp_svg: document.getElementById('stamp_svg').value
+    lon: parseFloat(document.getElementById('lon').value)||0
   };
   const r = await fetch('/api/setup/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
   const d = await r.json().catch(()=>({}));
   if(!r.ok){ document.getElementById('result').innerHTML='<div class="err">Error: '+(d.error||JSON.stringify(d))+'</div>'; await loadStatus(); return; }
-  document.getElementById('result').innerHTML='<div class="ok">Registered with main site. Relay ID: '+((d.state&&d.state.relay_id)||'')+'</div>';
+  document.getElementById('result').innerHTML='<div class="ok">'+(d.message||'Registered with main site. Relay ID: '+((d.state&&d.state.relay_id)||''))+'</div>';
   await loadStatus();
-  // auto-sync images to main site after registration
   try { await publishImages(); } catch(e) {}
+}
+async function updateRelayInfo(){
+  const body = {
+    main_site: document.getElementById('main_site').value,
+    hostname: document.getElementById('hostname').value,
+    city: document.getElementById('city').value,
+    region: document.getElementById('region').value,
+    cc: document.getElementById('cc').value,
+    tz: document.getElementById('tz').value,
+    lat: parseFloat(document.getElementById('lat').value)||0,
+    lon: parseFloat(document.getElementById('lon').value)||0
+  };
+  document.getElementById('result').innerHTML='<div class="muted">Updating info...</div>';
+  const r = await fetch('/api/setup/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  const d = await r.json().catch(()=>({}));
+  if(!r.ok){ document.getElementById('result').innerHTML='<div class="err">Error: '+(d.error||JSON.stringify(d))+'</div>'; await loadStatus(); return; }
+  document.getElementById('result').innerHTML='<div class="ok">'+(d.message||'Info updated on main site.')+'</div>';
+  await loadStatus();
 }
 loadStatus();
 </script></body></html>`
