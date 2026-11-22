@@ -52,6 +52,7 @@ const pageTemplate = `<!DOCTYPE html>
       max-width: 1200px;
       margin: 0 auto;
       padding: 2rem;
+      background: #dbeafe;
     }
     header {
       border-bottom: 3px solid var(--secondary);
