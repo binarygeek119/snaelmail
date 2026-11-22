@@ -213,13 +213,19 @@ func buildMessage(from, to, subject, body, dkimSignature string) string {
 		msg.WriteString(dkimSignature + "\r\n")
 	}
 
+	contentType := "text/plain; charset=UTF-8"
+	lowerBody := strings.ToLower(body)
+	if strings.Contains(lowerBody, "<!doctype html") || strings.Contains(lowerBody, "<html") {
+		contentType = "text/html; charset=UTF-8"
+	}
+
 	// Standard headers
 	msg.WriteString(fmt.Sprintf("From: %s\r\n", from))
 	msg.WriteString(fmt.Sprintf("To: %s\r\n", to))
 	msg.WriteString(fmt.Sprintf("Subject: %s\r\n", subject))
 	msg.WriteString(fmt.Sprintf("Date: %s\r\n", time.Now().UTC().Format(time.RFC1123Z)))
 	msg.WriteString("MIME-Version: 1.0\r\n")
-	msg.WriteString("Content-Type: text/plain; charset=UTF-8\r\n")
+	msg.WriteString(fmt.Sprintf("Content-Type: %s\r\n", contentType))
 	msg.WriteString("\r\n")
 	msg.WriteString(body)
 
