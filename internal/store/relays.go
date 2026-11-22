@@ -379,6 +379,29 @@ func (s *Store) GetRelayByBranchAPIKey(ctx context.Context, key string) (*Relay,
 	return &r, nil
 }
 
+// GetRelaysByOwnerID returns relays owned by a user.
+func (s *Store) GetRelaysByOwnerID(ctx context.Context, ownerID uuid.UUID) ([]*Relay, error) {
+	rows, err := s.pool.Query(ctx, `
+		SELECT r.id, r.hostname, r.pubkey, r.key_fpr, r.city, r.region, r.cc, r.lat, r.lon, r.tz, r.stamp_svg, r.stamp_png, r.stamp_sha256,
+		       r.plate_json, r.plate_sig, r.status, r.official, r.paused, r.central, r.opened_at, r.retired_at, r.last_txt_check, r.letters_passed, r.complaints_30d,
+		       r.owner_user_id, u.handle
+		FROM relays r LEFT JOIN users u ON u.id = r.owner_user_id
+		WHERE r.owner_user_id = $1
+		ORDER BY r.created_at DESC
+	`, ownerID)
+	if err != nil { return nil, fmt.Errorf("get relays by owner: %w", err) }
+	defer rows.Close()
+	var out []*Relay
+	for rows.Next() {
+		var r Relay
+		var ownerUsername *string
+		if err := rows.Scan(&r.ID,&r.Hostname,&r.Pubkey,&r.KeyFpr,&r.City,&r.Region,&r.CC,&r.Lat,&r.Lon,&r.TZ,&r.StampSVG,&r.StampPNG,&r.StampSHA256,&r.PlateJSON,&r.PlateSig,&r.Status,&r.Official,&r.Paused,&r.Central,&r.OpenedAt,&r.RetiredAt,&r.LastTXTCheck,&r.LettersPassed,&r.Complaints30d,&r.OwnerUserID,&ownerUsername); err != nil { return nil, err }
+		if ownerUsername != nil { r.OwnerUsername = *ownerUsername }
+		out = append(out, &r)
+	}
+	return out, nil
+}
+
 // UpdateRelayStamp updates the relay stamp SVG/PNG/SHA256.
 func (s *Store) UpdateRelayStamp(ctx context.Context, id uuid.UUID, stampSVG string, stampPNG []byte, stampSHA [32]byte) error {
 	_, err := s.pool.Exec(ctx, `UPDATE relays SET stamp_svg=$1, stamp_png=$2, stamp_sha256=$3 WHERE id=$4`, stampSVG, stampPNG, stampSHA[:], id)

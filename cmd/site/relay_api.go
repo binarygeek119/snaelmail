@@ -477,6 +477,15 @@ func (app *appState) apiRelayActionRouter(w http.ResponseWriter, r *http.Request
 	}
 }
 
+// apiMyRelays handles GET /api/postmaster/relays
+func (app *appState) apiMyRelays(w http.ResponseWriter, r *http.Request) {
+	_, user := app.validateSession(w, r)
+	if user == nil { return }
+	relays, err := app.store.GetRelaysByOwnerID(r.Context(), user.ID)
+	if err != nil { writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()}); return }
+	writeJSON(w, http.StatusOK, map[string]any{"relays": relays})
+}
+
 // apiOpenPostOffices handles GET /open-post-offices
 func (app *appState) apiOpenPostOffices(w http.ResponseWriter, r *http.Request) {
 	relays, err := app.store.ListActiveRelays(r.Context())

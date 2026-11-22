@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Postmaster Panel - Snaelmail</title>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f5f7fa;min-height:100vh;color:#1f2937}
+    .nav{background:#fff;padding:1rem 2rem;display:flex;justify-content:space-between;align-items:center;box-shadow:0 2px 10px rgba(0,0,0,.1)}
+    .logo{font-size:1.8rem;font-weight:bold;color:#667eea;text-decoration:none}
+    .nav-links{display:flex;gap:.75rem;align-items:center}
+    .btn{padding:.6rem 1.2rem;border-radius:25px;border:none;cursor:pointer;font-weight:500;text-decoration:none;font-size:.95rem}
+    .btn-primary{background:#667eea;color:#fff}.btn-secondary{background:#e5e7eb;color:#374151}
+    .wrap{max-width:1100px;margin:2rem auto;padding:0 1rem}
+    .card{background:#fff;border-radius:16px;padding:1.5rem;box-shadow:0 2px 10px rgba(0,0,0,.08);margin-bottom:1rem}
+    h1{color:#667eea;margin-bottom:.25rem} h2{color:#4b5563;margin-bottom:.75rem}
+    .muted{color:#6b7280} .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1rem}
+    label{display:block;font-weight:600;margin:.5rem 0 .25rem;color:#374151;font-size:.9rem}
+    input,select{width:100%;padding:.6rem;border:1px solid #d1d5db;border-radius:8px}
+    .relay{border:1px solid #e5e7eb;border-radius:12px;padding:1rem}.relay .name{font-weight:700;color:#4f46e5}
+    .preview{display:flex;gap:1.5rem;align-items:flex-start;flex-wrap:wrap}
+    .stamp-box{width:220px;height:220px;display:flex;align-items:center;justify-content:center;background:repeating-conic-gradient(#f3f4f6 0% 25%, #fff 0% 50%) 50% / 20px 20px;border-radius:12px;border:1px solid #e5e7eb;padding:10px}
+    .stamp-box svg{max-width:100%;max-height:100%}
+    textarea{width:100%;min-height:120px;padding:.6rem;border:1px solid #d1d5db;border-radius:8px;font-family:monospace;font-size:.8rem}
+  </style>
+</head>
+<body>
+  <nav class="nav">
+    <a href="/" class="logo">🐌 Snaelmail</a>
+    <div class="nav-links">
+      <a href="/dashboard.html" class="btn btn-secondary">Dashboard</a>
+      <a href="/post-offices.html" class="btn btn-secondary">Post Offices</a>
+      <button class="btn btn-secondary" onclick="logout()">Log Out</button>
+    </div>
+  </nav>
+  <div class="wrap">
+    <div class="card">
+      <h1>📮 Postmaster Panel</h1>
+      <p class="muted">Manage your post offices and tools.</p>
+    </div>
+
+    <div class="card">
+      <h2>Your Post Offices</h2>
+      <div id="relays" class="grid"><div class="muted">Loading...</div></div>
+    </div>
+
+    <div class="card">
+      <h2>Stamp Generator</h2>
+      <p class="muted" style="margin-bottom:1rem;">Customize a vintage stamp template. Pick colors and text, then download the SVG.</p>
+      <div class="preview">
+        <div>
+          <div class="stamp-box" id="stampPreview"></div>
+          <div style="display:flex;gap:.5rem;margin-top:.75rem;flex-wrap:wrap;">
+            <button class="btn btn-primary" onclick="downloadStamp()">Download SVG</button>
+            <button class="btn btn-secondary" onclick="copyStampSVG()">Copy SVG</button>
+          </div>
+        </div>
+        <div style="flex:1;min-width:280px;">
+          <div class="grid">
+            <label>City<input id="sgCity" value="New York" oninput="renderStamp()"></label>
+            <label>Region / State<input id="sgRegion" value="NY" oninput="renderStamp()"></label>
+            <label>Country Code<input id="sgCC" value="US" oninput="renderStamp()"></label>
+            <label>Bottom Text<input id="sgBottom" value="POST OFFICE" oninput="renderStamp()"></label>
+            <label>Stroke Color<input id="sgStroke" type="color" value="#4b3f72" oninput="renderStamp()"></label>
+            <label>Text Color<input id="sgText" type="color" value="#3b2d5c" oninput="renderStamp()"></label>
+            <label>Fill Color<input id="sgFill" type="color" value="#f7f3ea" oninput="renderStamp()"></label>
+            <label>Outline Color<input id="sgOutline" type="color" value="#ffffff" oninput="renderStamp()"></label>
+          </div>
+        </div>
+      </div>
+      <label style="margin-top:1rem;">SVG Output</label>
+      <textarea id="svgOut" readonly></textarea>
+    </div>
+  </div>
+
+<script>
+const token = localStorage.getItem('authToken');
+if (!token) window.location.href = '/login.html';
+function logout(){ localStorage.removeItem('authToken'); localStorage.removeItem('userId'); window.location.href='/login.html'; }
+function esc(s){ return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function genStampSVG(city,region,cc,bottom,stroke,text,fill,outline){
+  city=(city||'Snaelmail').trim().toUpperCase();
+  const loc=((region||'')+' '+(cc||'')).trim().toUpperCase() || 'POST OFFICE';
+  bottom=(bottom||'POST OFFICE').trim().toUpperCase();
+  const outerR=56, innerR=52, teeth=48, cx=60, cy=60; let pts=[];
+  for(let i=0;i<teeth*2;i++){ const ang=(i/(teeth*2))*Math.PI*2 - Math.PI/2; const r=i%2?innerR:outerR; pts.push((cx+r*Math.cos(ang)).toFixed(2)+','+(cy+r*Math.sin(ang)).toFixed(2)); }
+  const edge=pts.join(' ');
+  return `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 120'>
+  <defs><filter id='ink' x='-5%' y='-5%' width='110%' height='110%'><feTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='1' result='noise'/><feDisplacementMap in='SourceGraphic' in2='noise' scale='0.6'/></filter></defs>
+  <g filter='url(#ink)' fill='none' stroke='${stroke}' stroke-linecap='round'>
+    <polygon points='${edge}' fill='${fill}' stroke='${outline}' stroke-opacity='0.85' stroke-width='4'/>
+    <polygon points='${edge}' fill='none' stroke='${stroke}' stroke-width='1.5'/>
+    <circle cx='60' cy='60' r='45' stroke='${stroke}' stroke-width='2.2'/>
+    <circle cx='60' cy='60' r='41' stroke='${stroke}' stroke-width='1'/>
+    <text x='60' y='38' text-anchor='middle' font-size='7.5' font-family='Georgia,serif' fill='${stroke}' stroke='none' font-weight='700' letter-spacing='1'>SNAELMAIL</text>
+    <text x='60' y='54' text-anchor='middle' font-size='8.5' font-family='Georgia,serif' fill='${text}' stroke='none' font-weight='700'>${esc(city)}</text>
+    <text x='60' y='66' text-anchor='middle' font-size='5.8' font-family='Georgia,serif' fill='${stroke}' stroke='none'>${esc(loc)}</text>
+    <text x='60' y='78' text-anchor='middle' font-size='6.5' font-family='Georgia,serif' fill='${stroke}' stroke='none' font-weight='700' letter-spacing='0.5'>${esc(bottom)}</text>
+  </g>
+</svg>`;
+}
+function renderStamp(){
+  const svg=genStampSVG(document.getElementById('sgCity').value,document.getElementById('sgRegion').value,document.getElementById('sgCC').value,document.getElementById('sgBottom').value,document.getElementById('sgStroke').value,document.getElementById('sgText').value,document.getElementById('sgFill').value,document.getElementById('sgOutline').value);
+  document.getElementById('stampPreview').innerHTML=svg;
+  document.getElementById('svgOut').value=svg;
+}
+function downloadStamp(){
+  const svg=document.getElementById('svgOut').value; const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([svg],{type:'image/svg+xml'})); a.download='stamp.svg'; a.click(); URL.revokeObjectURL(a.href);
+}
+async function copyStampSVG(){ try{ await navigator.clipboard.writeText(document.getElementById('svgOut').value); alert('SVG copied'); }catch(e){ alert('Copy failed'); } }
+async function loadRelays(){
+  try{
+    const res=await fetch('/api/postmaster/relays',{headers:{'Authorization':'Bearer '+token}});
+    if(!res.ok){ document.getElementById('relays').innerHTML='<div class="muted">Could not load relays.</div>'; return; }
+    const data=await res.json(); const relays=data.relays||[];
+    if(!relays.length){ document.getElementById('relays').innerHTML='<div class="muted">No relays owned by this account yet.</div>'; return; }
+    document.getElementById('relays').innerHTML=relays.map(r=>`<div class="relay"><div class="name">${r.hostname||r.Hostname}</div><div class="muted">${r.city||r.City||''}, ${r.region||r.Region||''} ${r.cc||r.CC||''}</div><div class="muted">Status: ${r.status||r.Status||''}</div></div>`).join('');
+  }catch(e){ document.getElementById('relays').innerHTML='<div class="muted">Error loading relays.</div>'; }
+}
+renderStamp(); loadRelays();
+</script>
+</body>
+</html>

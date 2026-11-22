@@ -262,6 +262,7 @@
         <div class="user-info">
             <span class="user-handle" id="userEmail">user@snaelmail.org</span>
             <button class="btn" onclick="openSettings()" style="background: #e0e0e0;">⚙️ Settings</button>
+            <button class="btn" id="postmasterBtn" onclick="openPostmaster()" style="background:#667eea;color:white;display:none;">📮 Postmaster</button>
             <button class="btn" id="adminBtn" onclick="openAdmin()" style="background: #ffa500; display: none;">🔧 Admin Panel</button>
             <button class="btn btn-logout" onclick="logout()">Log Out</button>
         </div>
@@ -370,8 +371,22 @@
                 console.error('Error checking admin status:', error);
             }
         }
+        async function checkPostmasterStatus() {
+            try {
+                const response = await fetch('/api/postmaster/relays', {
+                    headers: { 'Authorization': 'Bearer ' + token }
+                });
+                if (response.ok) {
+                    const data = await response.json();
+                    if ((data.relays || []).length > 0) {
+                        document.getElementById('postmasterBtn').style.display = 'inline-block';
+                    }
+                }
+            } catch (error) { console.error('Error checking postmaster status:', error); }
+        }
         
         checkAdminStatus();
+        checkPostmasterStatus();
         
         // Open settings modal
         function openSettings() {
@@ -381,6 +396,9 @@
         // Open admin panel
         function openAdmin() {
             window.location.href = '/admin.html';
+        }
+        function openPostmaster() {
+            window.location.href = '/postmaster.html';
         }
         
         // Tab switching

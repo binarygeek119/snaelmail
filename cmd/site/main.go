@@ -212,6 +212,7 @@ func main() {
 	mux.HandleFunc("POST /api/relays", app.apiCreateRelay)
 	mux.HandleFunc("GET /api/relays/", app.apiRelayRouter)
 	mux.HandleFunc("POST /api/relay/", app.apiRelayActionRouter)
+	mux.HandleFunc("GET /api/postmaster/relays", app.apiMyRelays)
 	mux.HandleFunc("GET /open-post-offices", app.apiOpenPostOffices)
 	mux.HandleFunc("GET /open-post-offices/", app.apiOpenPostOffice)
 	mux.HandleFunc("GET /api/public/post-office/{hostname}/page", app.apiPublicRelayPage)
