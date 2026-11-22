@@ -438,3 +438,31 @@ func (s *Store) ListOutbox(ctx context.Context, userID uuid.UUID, limit int) ([]
 	}
 	return envs, nil
 }
+
+func (s *Store) SetUserAPIKey(ctx context.Context, userID uuid.UUID, key string) error {
+	_, err := s.pool.Exec(ctx, `UPDATE users SET api_key=$1 WHERE id=$2`, key, userID)
+	return err
+}
+
+func (s *Store) GetUserAPIKey(ctx context.Context, userID uuid.UUID) (string, error) {
+	var key *string
+	err := s.pool.QueryRow(ctx, `UPDATE users SET api_key=COALESCE(api_key, NULL) WHERE id=$1 RETURNING api_key`, userID).Scan(&key)
+	if err != nil { return "", err }
+	if key == nil { return "", nil }
+	return *key, nil
+}
+
+func (s *Store) GetUserByAPIKey(ctx context.Context, handle, apiKey string) (*User, error) {
+	var u User
+	err := s.pool.QueryRow(ctx, `
+		SELECT id, handle, address, email, pass_hash, display_name, home_relay_id,
+		       home_relay_changed_at, status, storage_bytes, letters_today, quota_day, created_at, is_admin, city, state, country
+		FROM users WHERE handle = $1 AND api_key = $2
+	`, handle, apiKey).Scan(
+		&u.ID, &u.Handle, &u.Address, &u.Email, &u.PassHash, &u.DisplayName, &u.HomeRelayID,
+		&u.HomeRelayChangedAt, &u.Status, &u.StorageBytes, &u.LettersToday, &u.QuotaDay, &u.CreatedAt, &u.IsAdmin, &u.City, &u.State, &u.Country,
+	)
+	if errors.Is(err, pgx.ErrNoRows) { return nil, nil }
+	if err != nil { return nil, err }
+	return &u, nil
+}

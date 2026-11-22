@@ -22,18 +22,29 @@ func (app *appState) apiCreateRelay(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var req struct {
-		Hostname string  `json:"hostname"`
-		City     string  `json:"city"`
-		Region   string  `json:"region"`
-		CC       string  `json:"cc"`
-		Lat      float64 `json:"lat"`
-		Lon      float64 `json:"lon"`
-		TZ       string  `json:"tz"`
-		Pubkey   string  `json:"pubkey"` // base64-encoded Ed25519 public key
-		StampSVG string  `json:"stamp_svg"`
+		Hostname      string  `json:"hostname"`
+		City          string  `json:"city"`
+		Region        string  `json:"region"`
+		CC            string  `json:"cc"`
+		Lat           float64 `json:"lat"`
+		Lon           float64 `json:"lon"`
+		TZ            string  `json:"tz"`
+		Pubkey        string  `json:"pubkey"` // base64-encoded Ed25519 public key
+		StampSVG      string  `json:"stamp_svg"`
+		OwnerUsername string  `json:"owner_username"`
+		OwnerAPIKey   string  `json:"owner_api_key"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid JSON"})
+		return
+	}
+	if strings.TrimSpace(req.OwnerUsername) == "" || strings.TrimSpace(req.OwnerAPIKey) == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "owner_username and owner_api_key are required"})
+		return
+	}
+	owner, err := app.store.GetUserByAPIKey(r.Context(), strings.TrimSpace(req.OwnerUsername), strings.TrimSpace(req.OwnerAPIKey))
+	if err != nil || owner == nil {
+		writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "invalid username or api key"})
 		return
 	}
 
@@ -360,15 +371,24 @@ func (app *appState) requireRelayVersion(w http.ResponseWriter, r *http.Request)
 func (app *appState) apiUpdateRelayProfile(w http.ResponseWriter, r *http.Request, relayID uuid.UUID) {
 	if !app.requireRelayVersion(w, r) { return }
 	var req struct {
-		City   string  `json:"city"`
-		Region string  `json:"region"`
-		CC     string  `json:"cc"`
-		Lat    float64 `json:"lat"`
-		Lon    float64 `json:"lon"`
-		TZ     string  `json:"tz"`
+		City          string  `json:"city"`
+		Region        string  `json:"region"`
+		CC            string  `json:"cc"`
+		Lat           float64 `json:"lat"`
+		Lon           float64 `json:"lon"`
+		TZ            string  `json:"tz"`
+		OwnerUsername string  `json:"owner_username"`
+		OwnerAPIKey   string  `json:"owner_api_key"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid JSON"}); return
+	}
+	if strings.TrimSpace(req.OwnerUsername) == "" || strings.TrimSpace(req.OwnerAPIKey) == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "owner_username and owner_api_key are required"}); return
+	}
+	owner, err := app.store.GetUserByAPIKey(r.Context(), strings.TrimSpace(req.OwnerUsername), strings.TrimSpace(req.OwnerAPIKey))
+	if err != nil || owner == nil {
+		writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "invalid username or api key"}); return
 	}
 	if strings.TrimSpace(req.City)=="" || strings.TrimSpace(req.Region)=="" || strings.TrimSpace(req.CC)=="" {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error":"city, region, and country code are required"}); return

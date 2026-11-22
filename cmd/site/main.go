@@ -232,6 +232,8 @@ func main() {
 	// API routes - settings
 	mux.HandleFunc("GET /api/settings", app.handleGetSettings)
 	mux.HandleFunc("POST /api/settings", app.handleUpdateSettings)
+	mux.HandleFunc("GET /api/settings/api-key", app.handleGetAPIKey)
+	mux.HandleFunc("POST /api/settings/api-key", app.handleGenerateAPIKey)
 	mux.HandleFunc("POST /api/change-password", app.handleChangePassword)
 
 	// API routes - tracking

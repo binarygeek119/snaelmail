@@ -281,6 +281,17 @@
                     <div id="passwordAlert" class="alert"></div>
                 </div>
                 
+                <div class="settings-section">
+                    <h2>🔑 Relay API Key</h2>
+                    <p class="setting-description" style="margin-bottom:1rem;">Use this key with your username when setting up a self-hosted relay.</p>
+                    <div class="setting-item">
+                        <label for="apiKey">API Key</label>
+                        <input type="text" id="apiKey" readonly placeholder="No API key generated">
+                    </div>
+                    <button type="button" class="btn btn-primary" onclick="generateApiKey()">Generate / Regenerate API Key</button>
+                    <div id="apiKeyMsg" style="margin-top:.5rem;color:#555;"></div>
+                </div>
+
                 <button type="submit" class="btn btn-primary">Save Settings</button>
             </form>
         </div>
@@ -295,7 +306,23 @@
         }
         
         // Load current settings
+        async function generateApiKey() {
+            const msg = document.getElementById('apiKeyMsg');
+            msg.textContent = 'Generating...';
+            try {
+                const res = await fetch('/api/settings/api-key', { method: 'POST', headers: { 'Authorization': 'Bearer ' + token } });
+                const d = await res.json();
+                if (!res.ok) { msg.textContent = d.error || 'Error generating key'; return; }
+                document.getElementById('apiKey').value = d.api_key || '';
+                msg.textContent = 'API key generated. Copy it now for your relay setup.';
+            } catch (e) { msg.textContent = 'Error generating key'; }
+        }
+
         async function loadSettings() {
+            try {
+                const kr = await fetch('/api/settings/api-key', { headers: { 'Authorization': 'Bearer ' + token } });
+                if (kr.ok) { const kd = await kr.json(); document.getElementById('apiKey').value = kd.api_key || ''; }
+            } catch (e) {}
             try {
                 const response = await fetch('/api/settings', {
                     headers: {

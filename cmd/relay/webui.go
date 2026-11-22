@@ -22,19 +22,21 @@ import (
 )
 
 type setupState struct {
-	MainSite   string `json:"main_site"`
-	Hostname   string `json:"hostname"`
-	City       string `json:"city"`
-	Region     string `json:"region"`
-	CC         string `json:"cc"`
-	Lat        float64 `json:"lat"`
-	Lon        float64 `json:"lon"`
-	TZ         string `json:"tz"`
-	Pubkey     string `json:"pubkey"`
-	Fingerprint string `json:"fingerprint"`
-	RelayID    string `json:"relay_id"`
-	Status     string `json:"status"`
-	LastError  string `json:"last_error"`
+	MainSite      string  `json:"main_site"`
+	Hostname      string  `json:"hostname"`
+	City          string  `json:"city"`
+	Region        string  `json:"region"`
+	CC            string  `json:"cc"`
+	Lat           float64 `json:"lat"`
+	Lon           float64 `json:"lon"`
+	TZ            string  `json:"tz"`
+	Pubkey        string  `json:"pubkey"`
+	Fingerprint   string  `json:"fingerprint"`
+	RelayID       string  `json:"relay_id"`
+	Status        string  `json:"status"`
+	LastError     string  `json:"last_error"`
+	OwnerUsername string  `json:"owner_username"`
+	OwnerAPIKey   string  `json:"owner_api_key"`
 }
 
 func relayDataDir() string {
@@ -142,15 +144,17 @@ func lookupRelayIDByHostname(ctx context.Context, client *http.Client, mainSite,
 
 func (app *relayApp) setupRegisterHandler(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		MainSite string  `json:"main_site"`
-		Hostname string  `json:"hostname"`
-		City     string  `json:"city"`
-		Region   string  `json:"region"`
-		CC       string  `json:"cc"`
-		Lat      float64 `json:"lat"`
-		Lon      float64 `json:"lon"`
-		TZ       string  `json:"tz"`
-		StampSVG string  `json:"stamp_svg"`
+		MainSite      string  `json:"main_site"`
+		Hostname      string  `json:"hostname"`
+		City          string  `json:"city"`
+		Region        string  `json:"region"`
+		CC            string  `json:"cc"`
+		Lat           float64 `json:"lat"`
+		Lon           float64 `json:"lon"`
+		TZ            string  `json:"tz"`
+		StampSVG      string  `json:"stamp_svg"`
+		OwnerUsername string  `json:"owner_username"`
+		OwnerAPIKey   string  `json:"owner_api_key"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid JSON"})
@@ -165,6 +169,8 @@ func (app *relayApp) setupRegisterHandler(w http.ResponseWriter, r *http.Request
 	s.Lat = req.Lat
 	s.Lon = req.Lon
 	if req.TZ != "" { s.TZ = req.TZ }
+	if req.OwnerUsername != "" { s.OwnerUsername = strings.TrimSpace(req.OwnerUsername) }
+	if req.OwnerAPIKey != "" { s.OwnerAPIKey = strings.TrimSpace(req.OwnerAPIKey) }
 	if s.Pubkey == "" {
 		if b, err := os.ReadFile(relayPubPath()); err == nil { s.Pubkey = strings.TrimSpace(string(b)) }
 	}
@@ -176,7 +182,7 @@ func (app *relayApp) setupRegisterHandler(w http.ResponseWriter, r *http.Request
 
 	// If already registered, update profile
 	if s.RelayID != "" {
-		up := map[string]any{"city":s.City,"region":s.Region,"cc":s.CC,"lat":s.Lat,"lon":s.Lon,"tz":s.TZ}
+		up := map[string]any{"city":s.City,"region":s.Region,"cc":s.CC,"lat":s.Lat,"lon":s.Lon,"tz":s.TZ,"owner_username":s.OwnerUsername,"owner_api_key":s.OwnerAPIKey}
 		ub, _ := json.Marshal(up)
 		ureq, _ := http.NewRequestWithContext(r.Context(), http.MethodPost, strings.TrimRight(s.MainSite,"/")+"/api/relay/"+s.RelayID+"/update", bytes.NewReader(ub))
 		ureq.Header.Set("Content-Type","application/json")
@@ -199,7 +205,7 @@ func (app *relayApp) setupRegisterHandler(w http.ResponseWriter, r *http.Request
 	}
 
 	// Register new relay
-	payload := map[string]any{"hostname":s.Hostname,"city":s.City,"region":s.Region,"cc":s.CC,"lat":s.Lat,"lon":s.Lon,"tz":s.TZ,"pubkey":s.Pubkey,"stamp_svg":req.StampSVG}
+	payload := map[string]any{"hostname":s.Hostname,"city":s.City,"region":s.Region,"cc":s.CC,"lat":s.Lat,"lon":s.Lon,"tz":s.TZ,"pubkey":s.Pubkey,"stamp_svg":req.StampSVG,"owner_username":s.OwnerUsername,"owner_api_key":s.OwnerAPIKey}
 	body, _ := json.Marshal(payload)
 	hreq, _ := http.NewRequestWithContext(r.Context(), http.MethodPost, strings.TrimRight(s.MainSite,"/")+"/api/relays", bytes.NewReader(body))
 	hreq.Header.Set("Content-Type", "application/json")
@@ -216,7 +222,7 @@ func (app *relayApp) setupRegisterHandler(w http.ResponseWriter, r *http.Request
 			if id := lookupRelayIDByHostname(r.Context(), client, s.MainSite, s.Hostname); id != "" {
 				s.RelayID = id; s.Status = "registered"; s.LastError = ""; _ = saveSetupState(s)
 				// try update after linking
-				up := map[string]any{"city":s.City,"region":s.Region,"cc":s.CC,"lat":s.Lat,"lon":s.Lon,"tz":s.TZ}
+				up := map[string]any{"city":s.City,"region":s.Region,"cc":s.CC,"lat":s.Lat,"lon":s.Lon,"tz":s.TZ,"owner_username":s.OwnerUsername,"owner_api_key":s.OwnerAPIKey}
 				ub,_ := json.Marshal(up)
 				ureq,_ := http.NewRequestWithContext(r.Context(), http.MethodPost, strings.TrimRight(s.MainSite,"/")+"/api/relay/"+id+"/update", bytes.NewReader(ub))
 				ureq.Header.Set("Content-Type","application/json"); ureq.Header.Set("X-Relay-Version", Version)
@@ -283,6 +289,8 @@ input:focus,textarea:focus,select:focus{outline:none;border-color:#667eea;box-sh
       <div class="row"><button class="btn" onclick="keygen()">Generate Keypair</button><button class="btn secondary" onclick="exportIdentity()">Export as TXT</button></div>
       <label>Public Key (base64)</label><textarea id="pubkey" rows="2" readonly></textarea>
       <label>Fingerprint</label><input id="fingerprint" readonly>
+      <label>Main Site Username</label><input id="ownerUsername" placeholder="your snaelmail username">
+      <label>Main Site API Key</label><input id="ownerApiKey" placeholder="paste API key from account settings">
       <div id="result" style="margin-top:.75rem;"></div>
       <div class="row"><button class="btn" onclick="nextStep()">Next: Post Office Info</button></div>
     </div>
@@ -444,6 +452,8 @@ async function loadStatus(){
   if (s.hostname!=null) document.getElementById('hostname').value=s.hostname;
   if (s.pubkey!=null) document.getElementById('pubkey').value=s.pubkey;
   if (s.fingerprint!=null) document.getElementById('fingerprint').value=s.fingerprint;
+  if (s.owner_username!=null) document.getElementById('ownerUsername').value=s.owner_username;
+  if (s.owner_api_key!=null) document.getElementById('ownerApiKey').value=s.owner_api_key;
   if (s.lat!=null) document.getElementById('lat').value=s.lat;
   if (s.lon!=null) document.getElementById('lon').value=s.lon;
   updateHostname();
@@ -461,7 +471,7 @@ async function setHeroImage(name){ await fetch('/api/setup/images/hero',{method:
 async function publishImages(){ var target=document.getElementById('imgResult')||document.getElementById('dashMsg'); if(target) target.innerHTML='<div class="muted">Syncing to main site...</div>'; const r=await fetch('/api/setup/publish',{method:'POST'}); const d=await r.json().catch(function(){return {};}); if(!r.ok){ if(target) target.innerHTML='<div class="err">Sync error: '+(d.error||JSON.stringify(d))+'</div>'; return; } if(target) target.innerHTML='<div class="ok">Synced to main site. '+(d.message||'')+'</div>'; }
 async function copyCentral(){ setResult('imgResult','muted','Copying from Central Post Office...'); const r=await fetch('/api/setup/copy-central',{method:'POST'}); const d=await r.json().catch(function(){return {};}); if(!r.ok){ setResult('imgResult','err','Copy error: '+(d.error||JSON.stringify(d))); return; } setResult('imgResult','ok','Copied '+(d.copied_photos||0)+' image(s) from Central Post Office.'); await loadImages(); }
 async function uploadStamp(){ const f=(document.getElementById('stampFile').files||[])[0]; const msg=document.getElementById('stampMsg'); if(!f){ msg.style.color='#b91c1c'; msg.textContent='Choose a stamp file first.'; return; } msg.style.color='#555'; msg.textContent='Uploading...'; const isSVG=f.type==='image/svg+xml'||f.name.toLowerCase().endsWith('.svg'); const body={stamp_svg:'',stamp_png_base64:''}; if(isSVG){ body.stamp_svg=await f.text(); } else { body.stamp_png_base64=await new Promise(function(res,rej){ const r=new FileReader(); r.onload=function(){res(String(r.result).split(',')[1]||'');}; r.onerror=rej; r.readAsDataURL(f); }); } const r=await fetch('/api/setup/stamp',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}); const d=await r.json().catch(function(){return {};}); if(r.ok){ msg.style.color='#16a34a'; msg.textContent='Upload successful. Stamp saved.'; document.getElementById('stampFile').value=''; refreshStampPreview(); } else { msg.style.color='#b91c1c'; msg.textContent='Error: '+(d.error||r.status); } }
-async function registerRelay(){ const body={main_site:document.getElementById('main_site').value,hostname:document.getElementById('hostname').value,city:document.getElementById('city').value,region:document.getElementById('region').value,cc:document.getElementById('cc').value,tz:document.getElementById('tz').value,lat:parseFloat(document.getElementById('lat').value)||0,lon:parseFloat(document.getElementById('lon').value)||0}; setResult('registerResult','muted','Registering...'); const r=await fetch('/api/setup/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}); const d=await r.json().catch(function(){return {};}); if(!r.ok){ setResult('registerResult','err','Error: '+(d.error||JSON.stringify(d))); await loadStatus(); return; } setResult('registerResult','ok',d.message||'Registered with main site. Relay ID: '+((d.state&&d.state.relay_id)||'')); await loadStatus(); try{ await publishImages(); }catch(e){} showDashboard(); }
+async function registerRelay(){ const body={main_site:document.getElementById('main_site').value,hostname:document.getElementById('hostname').value,city:document.getElementById('city').value,region:document.getElementById('region').value,cc:document.getElementById('cc').value,tz:document.getElementById('tz').value,lat:parseFloat(document.getElementById('lat').value)||0,lon:parseFloat(document.getElementById('lon').value)||0,owner_username:document.getElementById('ownerUsername').value,owner_api_key:document.getElementById('ownerApiKey').value}; setResult('registerResult','muted','Registering...'); const r=await fetch('/api/setup/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}); const d=await r.json().catch(function(){return {};}); if(!r.ok){ setResult('registerResult','err','Error: '+(d.error||JSON.stringify(d))); await loadStatus(); return; } setResult('registerResult','ok',d.message||'Registered with main site. Relay ID: '+((d.state&&d.state.relay_id)||'')); await loadStatus(); try{ await publishImages(); }catch(e){} showDashboard(); }
 async function loadNotifications(){
   var el=document.getElementById('dashNotifs'); if(!el) return;
   var notes=[];
