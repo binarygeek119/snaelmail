@@ -1,6 +1,6 @@
 # Snaelmail Relay
 
-A Snaelmail relay is a self-hosted post office node. It registers with the main Snaelmail site, hosts its own post office identity/location, and can publish a public post office page.
+A Snaelmail relay is a self-hosted post office node. It registers with the main Snaelmail site, publishes a public post office page, and can participate in the Snaelmail network.
 
 ## Quick Start (Docker)
 
@@ -12,32 +12,38 @@ docker run -d \
   ghcr.io/binarygeek119/snaelmail-relay:latest
 ```
 
-Then open the setup UI:
+Open the setup UI:
 
 - http://localhost:8477/
 
-## Setup Web UI
+## Setup Wizard (first run)
 
-The relay setup UI runs on **port 8477** and lets you:
+The relay UI runs on **port 8477** and guides setup:
 
-1. **Generate Relay Identity** - creates an Ed25519 keypair; export identity as TXT.
-2. **Register with Main Site** - registers the relay with `https://snaelmail.org`.
-   - Main site URL is hardcoded.
-   - Hostname is auto-derived from City + Region/State + Country Code (not editable).
-   - Country Code, Region/State, and Timezone use dropdowns.
-   - Latitude/Longitude can be found via [latlong.net](https://www.latlong.net/).
-3. **City Images** - upload images, save locally, sync to main site, copy from Central Post Office, preview local public site.
-4. **Post Office Stamp** - upload SVG or PNG stamp.
+1. **Relay Identity** - generate Ed25519 keypair, export identity TXT, enter main site username + API key (from snaelmail.org Account Settings).
+2. **Post Office Info (Part 1)** - city, country, region/state, timezone, latitude/longitude. Hostname is auto-derived from city/region/country.
+3. **About (Part 2)** - local/personal description shown on the public post office page.
+4. **City Images** - upload gallery images, set hero image, upload optional city map, copy from Central Post Office, preview local page.
+5. **Stamp** - use default vintage stamp (includes city/region/country) or upload custom SVG/PNG.
+6. **Register** - register with `https://snaelmail.org`.
+
+After registration, the UI switches to a dashboard.
+
+## Dashboard
+
+- **Notifications** - relay status/need-to-know info (pending, active, offline, suspended, blocked, update needed).
+- **Mail Activity** - letters through, delivered, sent, in route (from local relay stats when DB-backed).
+- **Sync to Main Site** - publish page info/images/map/stamp.
+- **Preview Public Site** - local preview.
 
 ## Config / Data
 
-Relay data is stored in `SMAIL_RELAY_DIR` (default: `/config` in Docker).
+Stored in `SMAIL_RELAY_DIR` (default `/config` in Docker):
 
-- **SQLite DB**: `/config/relay.db` - stores relay location and relay info.
-- **Images**: `/config/images/` - post office city images.
-- **Stamp**: `/config/stamp.svg` or `/config/stamp.png`.
-- **Keys**: `/config/relay.key`, `/config/relay.pub`.
-- **State**: `/config/setup.json` (legacy sync).
+- `/config/relay.db` - SQLite local relay config/state
+- `/config/images/` - city images and optional `map.*`
+- `/config/stamp.svg` or `/config/stamp.png` - custom stamp (optional)
+- `/config/relay.key`, `/config/relay.pub` - relay identity keys
 
 Mount `/config` as a volume to persist data.
 
@@ -46,40 +52,25 @@ Mount `/config` as a volume to persist data.
 | Port | Direction | Purpose |
 |------|-----------|---------|
 | 8477/tcp | Inbound | Relay setup/dashboard web UI |
-| 443/tcp | Outbound | Connect to main Snaelmail site/API |
-| 53/tcp+udp | Outbound | DNS resolution |
+| 443/tcp | Outbound | Main Snaelmail site/API |
+| 53/tcp+udp | Outbound | DNS |
 
 ## Versioning
 
-Relay Docker images are published to:
-
-- `ghcr.io/binarygeek119/snaelmail-relay`
-
-Tags:
+Images published to `ghcr.io/binarygeek119/snaelmail-relay`:
 
 - `latest` - latest main build
 - `sha-...` - commit build
-- `vX.Y.Z`, `vX.Y`, `vX` - semver tags when pushing `v*` git tags
+- `vX.Y.Z` / `vX.Y` / `vX` - release tags
 
-The relay reports `X-Relay-Version` when connecting to the main site.
-
-## Minimum Version Enforcement
-
-The main site can enforce a minimum relay version via:
-
-```bash
-SMAIL_MIN_RELAY_VERSION=1.0.0
-```
-
-If set, relay connect/register/publish actions require `X-Relay-Version` >= minimum. Old or missing versions receive `426` with `minimum_version` and `your_version`.
+Relay sends `X-Relay-Version` to main site. Main site may enforce `SMAIL_MIN_RELAY_VERSION`; below-minimum relays get `426`.
 
 ## Public Site Sync
 
-- Images uploaded in relay UI are saved to `/config/images`.
-- **Sync to Main Site** publishes page info and images to Snaelmail for the public post office page.
-- When registered, relay auto-syncs images.
-- If local public site info/images change, sync again to update the main site page.
-- **Preview Public Site** shows a local preview (not hosted by snaelmail.org).
+- Uploaded images/map/stamp are saved locally in `/config`.
+- **Sync to Main Site** publishes manifest + assets to snaelmail.org.
+- Sync is allowed for pending/unverified relays so admins/mods can review the full page before acceptance.
+- Public users only see accepted/live relay pages; admins/mods can preview unpublished pages from Admin Panel.
 
 ## Development
 
@@ -90,8 +81,8 @@ go build ./cmd/relay
 
 Optional env vars:
 
-- `SMAIL_RELAY_DIR` - config/data directory (default `~/.snailmail-relay`)
-- `SMAIL_DSN` - Postgres DSN for full relay DB-backed services (optional; setup UI works without it)
+- `SMAIL_RELAY_DIR` - config/data dir (default `~/.snailmail-relay`)
+- `SMAIL_DSN` - Postgres DSN for full relay DB-backed services (setup UI works without it)
 
 ## Issues & Feature Requests
 

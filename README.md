@@ -1,222 +1,135 @@
-# 🐌 Snaelmail - The Slow Email Service
+# 🐌 Snaelmail
 
-**Email that takes its time. Deliberately slow communication through a network of virtual post offices.**
+**Slow, deliberate email through a network of virtual post offices.**
 
-## What is Snaelmail?
+Snaelmail is an independent email service where messages travel through post office relays, collect postmarks, and arrive based on geographic distance - bringing back the anticipation of snail mail.
 
-Snaelmail is an experimental email service that brings back the anticipation and thoughtfulness of snail mail. Instead of instant delivery, your messages travel through a network of virtual post offices, collecting digital postmarks along the way. The distance between sender and recipient determines delivery time.
+## Highlights
 
-- **Distance-based delivery**: Messages take time proportional to geographic distance
-- **Digital postmarks**: Each post office stamps your message as it passes through
-- **Privacy-first**: End-to-end encrypted messages
-- **Post office pages**: Each relay has a public page showcasing its community
-- **Simple interface**: Clean, modern web UI
+- **`@snaelmail.org` mailboxes** with web inbox/outbox and SMTP/IMAP/POP3 support
+- **Distance-influenced delivery** with relay/postmark-style routing metadata
+- **Public post office pages** for central and self-hosted relays (photos, stamp, about, map)
+- **Self-hosted relays** via Docker image on GHCR with a setup web UI
+- **Admin panel** for users, relays, central post office page, and moderation
 
-## Features
+## Stack
 
-### For Users
-- Send emails to any address (internal or external)
-- Beautiful web dashboard for composing and reading mail
-- Track your letters as they journey through the network
-- View delivery status and postmark trail
-- Simple signup and verification process
+- **Backend**: Go 1.23, `net/http`, `html/template`
+- **Database**: PostgreSQL 16 (no ORM, SQL migrations in `migrations/`)
+- **Frontend**: static HTML/CSS/JS in `web/site/`
+- **Deploy**: Netcup VPS (Debian 13), Nginx reverse proxy, systemd
+- **DNS/TLS**: Cloudflare DNS, Let's Encrypt certs
 
-### For Post Office Operators
-- Run your own virtual post office
-- Customize your post office page
-- Monitor mail traffic and statistics
-- Manage postmark designs
-- Admin dashboard for oversight
+## Repository Layout
 
-## Tech Stack
+```text
+cmd/
+  site/                  # Main Snaelmail web/API/mail server
+  relay/                 # Self-hosted relay daemon + setup UI
+internal/
+  auth/                  # Auth, sessions, passwords
+  config/                # Config loading
+  mail/                  # SMTP/IMAP/POP3/delivery
+  page/                  # Public page manifest/validation
+  render/                # Post office page/stamp rendering
+  relayversion/          # Relay semver enforcement
+  store/                 # Postgres data access
+  ...
+migrations/              # SQL migrations (001+)
+web/site/                # Web UI pages
+.github/workflows/       # CI / relay Docker build
+```
 
-- **Backend**: Go 1.23
-- **Database**: PostgreSQL 16
-- **Frontend**: Vanilla HTML/CSS/JavaScript
-- **Cryptography**: Ed25519 signatures, X25519 key exchange
-- **Infrastructure**: Google Cloud Platform (free tier compatible)
-- **DNS**: Cloudflare
-
-## Quick Start
+## Local Development
 
 ### Prerequisites
+
 - Go 1.23+
 - PostgreSQL 16+
-- Google Cloud account (for deployment)
 
-### Local Development
-
-```bash
-# Clone the repository
-git clone https://github.com/yourusername/snaelmail.git
-cd snaelmail
-
-# Set up database
-psql -U postgres -c "CREATE DATABASE snailmail;"
-PGPASSWORD=snailmail_secure_password_change_me psql -h localhost -U snailmail -d snailmail -f migrations/001_initial.sql
-PGPASSWORD=snailmail_secure_password_change_me psql -h localhost -U snailmail -d snailmail -f migrations/002_p7.sql
-
-# Run migrations
-go run ./cmd/migrate
-
-# Start the server
-go run ./cmd/site
-```
-
-The server will start on `http://localhost:8080`
-
-### Deployment to Google Cloud
-
-See [FREE_TIER_GUIDE.md](FREE_TIER_GUIDE.md) for complete instructions on deploying to Google Cloud's free tier.
+### Run the site
 
 ```bash
-# Quick deployment
-./setup-free-tier.sh
+# Create DB
+createdb snailmail
+
+# Apply migrations (in order)
+for f in migrations/*.sql; do psql "$SMAIL_DSN" -f "$f"; done
+
+# Run
+export SMAIL_DSN="postgres://user:pass@localhost:5432/snailmail?sslmode=disable"
+go run ./cmd/site -config config.toml
 ```
 
-## Project Structure
+The site serves on the configured HTTP addr (default `:8080` in config).
 
-```
-snaelmail/
-├── cmd/
-│   ├── site/          # Main web server
-│   ├── relay/         # Relay daemon
-│   └── migrate/       # Database migrations
-├── internal/
-│   ├── auth/          # Authentication
-│   ├── clock/         # Postal calendar
-│   ├── config/        # Configuration
-│   ├── crypto/        # Encryption
-│   ├── lookup/        # Search functionality
-│   ├── page/          # Post office pages
-│   ├── plate/         # Postmark generation
-│   ├── relayreg/      # Relay registration
-│   ├── render/        # Page rendering
-│   ├── route/         # Message routing
-│   ├── schedule/      # Delivery scheduling
-│   ├── stamp/         # Postmark chain
-│   ├── store/         # Database layer
-│   └── tlog/          # Transparency log
-├── migrations/        # SQL migrations
-├── web/site/          # Frontend HTML/CSS/JS
-└── testdata/          # Test fixtures
-```
+## Main Site (Production)
 
-## Database Schema
+Current production runs on a Netcup VPS behind Nginx/systemd.
 
-The system uses 13 core tables:
-- `users` - User accounts
-- `relays` - Post office relays
-- `envelopes` - Message envelopes
-- `hops` - Message route hops
-- `stamps` - Postmarks at each relay
-- `pages` - Public post office pages
-- `tlog_leaves` / `tlog_roots` - Transparency log
-
-See `migrations/001_initial.sql` for the complete schema.
-
-## API Endpoints
-
-### User API
-- `POST /api/signup` - Create account
-- `POST /api/session` - Login
-- `POST /api/verify` - Verify email
-- `POST /api/letters` - Send email
-- `GET /api/inbox` - Get inbox
-- `GET /api/outbox` - Get sent mail
-
-### Relay API
-- `POST /api/relays` - Register relay
-- `POST /api/relay/:id/verify` - Verify relay
-- `GET /open-post-offices` - List all post offices
-- `GET /open-post-offices/:id` - View post office page
-
-### Admin API
-- `GET /api/admin/stats` - System statistics
-- `GET /api/admin/users` - Manage users
-- `GET /api/admin/relays` - Manage relays
-
-## Configuration
-
-Configuration is via `config.toml`:
-
-```toml
-[server]
-port = 8080
-
-[database]
-host = "localhost"
-port = 5432
-name = "snailmail"
-user = "snailmail"
-
-[email]
-domain = "snaelmail.org"
-
-[routing]
-base_speed = 100  # km/hour
-```
-
-## Development
-
-### Running Tests
+Typical deploy flow:
 
 ```bash
-go test ./...
+ssh root@62.83.135.138
+cd /opt/snailmail/app
+git pull origin main
+/usr/local/go/bin/go build -buildvcs=false -o /opt/snailmail/app/snaelmail ./cmd/site
+setcap 'cap_net_bind_service=+ep' /opt/snailmail/app/snaelmail
+chown snailmail:snailmail /opt/snailmail/app/snaelmail
+systemctl restart snailmail
 ```
 
-### Building
+## Self-Hosted Relay
+
+Run a relay with Docker:
 
 ```bash
-go build -o snailmail ./cmd/site
+docker run -d \
+  --name snaelmail-relay \
+  -p 8477:8477 \
+  -v snaelmail-relay-config:/config \
+  ghcr.io/binarygeek119/snaelmail-relay:latest
 ```
 
-## Deployment
+Open `http://localhost:8477/` for the setup wizard. See [relay.md](relay.md) for full relay docs.
 
-### Google Cloud (Free Tier)
+## Key Features
 
-The project is designed to run on Google Cloud's free tier:
-- e2-micro VM (2 vCPU, 1GB RAM)
-- 30GB persistent disk
-- Cloud SQL or local PostgreSQL
+### Accounts & Settings
+- Signup/login/verification
+- Account location for delivery timing
+- IMAP/POP3 settings and passwords
+- Relay API key generation for self-hosted relay registration
 
-See [FREE_TIER_GUIDE.md](FREE_TIER_GUIDE.md) for detailed setup instructions.
+### Admin Panel
+- Dashboard stats, users, letters, post offices
+- Accept/suspend/remove relays
+- Admin preview for unpublished relay pages
+- Central post office editor: location, stamp, city images, hero image
 
-### Domain Setup
+### Relay Setup Wizard
+1. Identity (keypair + main site username/API key)
+2. Post Office Info (city, region, country, timezone, coordinates)
+3. About (local/personal post office description)
+4. Images (city images + city map)
+5. Stamp (default vintage stamp or custom upload)
+6. Register with main site
 
-The project uses Cloudflare for DNS and SSL:
-- Automatic SSL certificates
-- DNS management
-- Email routing
+After registration, relay switches to a dashboard with notifications and mail activity.
 
-See [cloudflare/SETUP_GUIDE.md](cloudflare/SETUP_GUIDE.md) for setup instructions.
+## Relay Docker Images
 
-## Contributing
+Published to GHCR by `.github/workflows/relay-docker.yml`:
 
-Contributions are welcome! Please:
-1. Fork the repository
-2. Create a feature branch
-3. Write tests for new functionality
-4. Ensure all tests pass
-5. Submit a pull request
+- `ghcr.io/binarygeek119/snaelmail-relay:latest`
+- `ghcr.io/binarygeek119/snaelmail-relay:sha-...`
+- semver tags on `v*` releases
+
+## Issues / Feature Requests
+
+- [Bug report](https://github.com/binarygeek119/snaelmail/issues/new?template=bug_report.yml)
+- [Feature request](https://github.com/binarygeek119/snaelmail/issues/new?template=feature_request.yml)
 
 ## License
 
-This project is open source. See LICENSE file for details.
-
-## Roadmap
-
-- [ ] Mobile app support
-- [ ] Custom postmark designs
-- [ ] Post office themes
-- [ ] Message attachments
-- [ ] Group mailing lists
-- [ ] API for third-party integrations
-
-## Acknowledgments
-
-Inspired by the beauty of handwritten letters and the anticipation of waiting for mail.
-
----
-
-**Note**: This is an experimental project exploring slow communication in a fast-paced digital world.
+Open source - see repository for license details.
