@@ -5,11 +5,13 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
 	"snailmail/internal/auth"
 	"snailmail/internal/relayreg"
+	"snailmail/internal/relayversion"
 
 	"github.com/google/uuid"
 )
@@ -364,6 +366,19 @@ func (app *appState) apiRelayActionRouter(w http.ResponseWriter, r *http.Request
 	if err != nil {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid relay id"})
 		return
+	}
+
+	if minV := strings.TrimSpace(os.Getenv("SMAIL_MIN_RELAY_VERSION")); minV != "" && minV != "0.0.0" {
+		rv := strings.TrimSpace(r.Header.Get("X-Relay-Version"))
+		if rv == "" {
+			writeJSON(w, http.StatusUpgradeRequired, map[string]string{"error": "missing X-Relay-Version", "minimum_version": minV})
+			return
+		}
+		ok, err := relayversion.AtLeast(rv, minV)
+		if err != nil || !ok {
+			writeJSON(w, http.StatusUpgradeRequired, map[string]string{"error": "relay version too old", "minimum_version": minV, "your_version": rv})
+			return
+		}
 	}
 
 	switch action {

@@ -153,9 +153,9 @@ const pageTemplate = `<!DOCTYPE html>
     footer {
       margin-top: 3rem;
       padding-top: 1rem;
-      border-top: 1px solid var(--muted);
+      border-top: 1px solid #334155;
       font-size: 0.9rem;
-      color: var(--muted);
+      color: #1e293b;
     }
   </style>
 </head>
@@ -173,7 +173,7 @@ const pageTemplate = `<!DOCTYPE html>
   <section class="stamp">
     <div class="stamp-mark">{{.Relay.StampSVG}}</div>
     <div>
-      <h2 style="margin:0;color:var(--secondary);">Post Office Stamp</h2>
+      <h2 style="margin:0;color:#0f172a;">Post Office Stamp</h2>
       <p class="meta" style="margin:.25rem 0 0 0;">Official stamp of {{.Relay.City}} Post Office</p>
     </div>
   </section>

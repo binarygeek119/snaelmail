@@ -80,7 +80,11 @@ func (app *appState) apiPublishPage(w http.ResponseWriter, r *http.Request, rela
 			return
 		}
 		sum := sha256.Sum256(data)
-		_ = app.store.UpsertPageAsset(r.Context(), relayID, "photo", img.Filename, data, sum, i)
+		if err := app.store.UpsertPageAsset(r.Context(), relayID, "photo", img.Filename, data, sum, i); err != nil {
+			log.Printf("store page asset %s: %v", img.Filename, err)
+			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to store image"})
+			return
+		}
 	}
 
 	// Add logo
