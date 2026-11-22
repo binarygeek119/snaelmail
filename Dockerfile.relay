@@ -4,7 +4,8 @@ WORKDIR /src
 COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
-RUN CGO_ENABLED=0 GOOS=linux go build -buildvcs=false -o /out/snailmail-relay ./cmd/relay
+ARG VERSION=dev
+RUN CGO_ENABLED=0 GOOS=linux go build -buildvcs=false -ldflags "-X main.Version=${VERSION}" -o /out/snailmail-relay ./cmd/relay
 
 # Runtime stage
 FROM debian:bookworm-slim

@@ -18,6 +18,9 @@ import (
 
 // apiCreateRelay handles POST /api/relays
 func (app *appState) apiCreateRelay(w http.ResponseWriter, r *http.Request) {
+	if !app.requireRelayVersion(w, r) {
+		return
+	}
 	var req struct {
 		Hostname string  `json:"hostname"`
 		City     string  `json:"city"`
@@ -37,6 +40,14 @@ func (app *appState) apiCreateRelay(w http.ResponseWriter, r *http.Request) {
 	// Validate hostname
 	if err := relayreg.ValidateHostname(req.Hostname); err != nil {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
+		return
+	}
+	if strings.TrimSpace(req.City) == "" || strings.TrimSpace(req.Region) == "" || strings.TrimSpace(req.CC) == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "city, region, and country code are required"})
+		return
+	}
+	if strings.EqualFold(strings.TrimSpace(req.Region), "internet") {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "region must be a real location, not 'Internet'"})
 		return
 	}
 
@@ -320,8 +331,36 @@ func (app *appState) apiRetireRelay(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+func (app *appState) requireRelayVersion(w http.ResponseWriter, r *http.Request) bool {
+	minV := strings.TrimSpace(os.Getenv("SMAIL_MIN_RELAY_VERSION"))
+	if minV == "" || minV == "0.0.0" {
+		return true
+	}
+	rv := strings.TrimSpace(r.Header.Get("X-Relay-Version"))
+	if rv == "" {
+		writeJSON(w, http.StatusUpgradeRequired, map[string]string{
+			"error":           "missing X-Relay-Version header; relay version is below required minimum or not reported",
+			"minimum_version": minV,
+		})
+		return false
+	}
+	ok, err := relayversion.AtLeast(rv, minV)
+	if err != nil || !ok {
+		writeJSON(w, http.StatusUpgradeRequired, map[string]string{
+			"error":           "relay version is below minimum required version; update relay to connect",
+			"minimum_version": minV,
+			"your_version":    rv,
+		})
+		return false
+	}
+	return true
+}
+
 // apiRelayRouter routes /api/relays/:id/* to the appropriate handler
 func (app *appState) apiRelayRouter(w http.ResponseWriter, r *http.Request) {
+	if !app.requireRelayVersion(w, r) {
+		return
+	}
 	path := r.URL.Path
 	parts := strings.Split(strings.TrimPrefix(path, "/api/relays/"), "/")
 
@@ -368,17 +407,8 @@ func (app *appState) apiRelayActionRouter(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	if minV := strings.TrimSpace(os.Getenv("SMAIL_MIN_RELAY_VERSION")); minV != "" && minV != "0.0.0" {
-		rv := strings.TrimSpace(r.Header.Get("X-Relay-Version"))
-		if rv == "" {
-			writeJSON(w, http.StatusUpgradeRequired, map[string]string{"error": "missing X-Relay-Version", "minimum_version": minV})
-			return
-		}
-		ok, err := relayversion.AtLeast(rv, minV)
-		if err != nil || !ok {
-			writeJSON(w, http.StatusUpgradeRequired, map[string]string{"error": "relay version too old", "minimum_version": minV, "your_version": rv})
-			return
-		}
+	if !app.requireRelayVersion(w, r) {
+		return
 	}
 
 	switch action {

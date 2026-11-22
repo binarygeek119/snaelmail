@@ -394,6 +394,6 @@ func (s *Store) EnsureCentralRelay(ctx context.Context) error {
 			status, official, paused, central, opened_at, letters_passed, complaints_30d
 		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,NULL,NULL,'active',true,false,true,now(),0,0)
 		ON CONFLICT (hostname) DO UPDATE SET central=true, status='active', official=true
-	`, uuid.New(), "central.snaelmail.org", []byte(pub), keyFpr[:], "Snaelmail Central", "Internet", "US", 40.7128, -74.0060, "UTC", stampSVG, []byte{}, stampSHA[:])
+	`, uuid.New(), "central.snaelmail.org", []byte(pub), keyFpr[:], "Des Moines", "Iowa", "US", 41.586834, -93.624962, "America/Chicago", stampSVG, []byte{}, stampSHA[:])
 	return err
 }
