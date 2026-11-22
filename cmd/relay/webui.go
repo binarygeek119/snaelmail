@@ -157,7 +157,7 @@ func (app *relayApp) setupRegisterHandler(w http.ResponseWriter, r *http.Request
 		return
 	}
 	s := loadSetupState()
-	if req.MainSite != "" { s.MainSite = strings.TrimRight(req.MainSite, "/") }
+	s.MainSite = "https://snaelmail.org"
 	s.Hostname = strings.TrimSpace(req.Hostname)
 	s.City = strings.TrimSpace(req.City)
 	s.Region = strings.TrimSpace(req.Region)
@@ -166,61 +166,72 @@ func (app *relayApp) setupRegisterHandler(w http.ResponseWriter, r *http.Request
 	s.Lon = req.Lon
 	if req.TZ != "" { s.TZ = req.TZ }
 	if s.Pubkey == "" {
-		// try load existing
-		b, err := os.ReadFile(relayPubPath())
-		if err == nil { s.Pubkey = strings.TrimSpace(string(b)) }
+		if b, err := os.ReadFile(relayPubPath()); err == nil { s.Pubkey = strings.TrimSpace(string(b)) }
 	}
 	if s.Pubkey == "" {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "generate a keypair first"})
 		return
 	}
-	payload := map[string]any{
-		"hostname": s.Hostname, "city": s.City, "region": s.Region, "cc": s.CC,
-		"lat": s.Lat, "lon": s.Lon, "tz": s.TZ, "pubkey": s.Pubkey, "stamp_svg": req.StampSVG,
+	client := &http.Client{Timeout: 15 * time.Second}
+
+	// If already registered, update profile
+	if s.RelayID != "" {
+		up := map[string]any{"city":s.City,"region":s.Region,"cc":s.CC,"lat":s.Lat,"lon":s.Lon,"tz":s.TZ}
+		ub, _ := json.Marshal(up)
+		ureq, _ := http.NewRequestWithContext(r.Context(), http.MethodPost, strings.TrimRight(s.MainSite,"/")+"/api/relay/"+s.RelayID+"/update", bytes.NewReader(ub))
+		ureq.Header.Set("Content-Type","application/json")
+		ureq.Header.Set("X-Relay-Version", Version)
+		uresp, err := client.Do(ureq)
+		if err == nil {
+			urb, _ := io.ReadAll(uresp.Body); uresp.Body.Close()
+			if uresp.StatusCode >= 200 && uresp.StatusCode < 300 {
+				s.Status = "registered"; s.LastError = ""
+				_ = saveSetupState(s)
+				writeJSON(w, http.StatusOK, map[string]any{"state":s, "message":"Relay info updated on main site."})
+				return
+			}
+			// if 404, fall through to register
+			if uresp.StatusCode != 404 {
+				s.Status = "error"; s.LastError = string(urb); _ = saveSetupState(s)
+				w.Header().Set("Content-Type","application/json"); w.WriteHeader(uresp.StatusCode); _,_ = w.Write(urb); return
+			}
+		}
 	}
+
+	// Register new relay
+	payload := map[string]any{"hostname":s.Hostname,"city":s.City,"region":s.Region,"cc":s.CC,"lat":s.Lat,"lon":s.Lon,"tz":s.TZ,"pubkey":s.Pubkey,"stamp_svg":req.StampSVG}
 	body, _ := json.Marshal(payload)
-	url := s.MainSite + "/api/relays"
-	hreq, _ := http.NewRequestWithContext(r.Context(), http.MethodPost, url, bytes.NewReader(body))
+	hreq, _ := http.NewRequestWithContext(r.Context(), http.MethodPost, strings.TrimRight(s.MainSite,"/")+"/api/relays", bytes.NewReader(body))
 	hreq.Header.Set("Content-Type", "application/json")
 	hreq.Header.Set("X-Relay-Version", Version)
-	client := &http.Client{Timeout: 15 * time.Second}
 	resp, err := client.Do(hreq)
 	if err != nil {
-		s.Status = "error"
-		s.LastError = err.Error()
-		_ = saveSetupState(s)
-		writeJSON(w, http.StatusBadGateway, map[string]string{"error": err.Error()})
-		return
+		s.Status = "error"; s.LastError = err.Error(); _ = saveSetupState(s)
+		writeJSON(w, http.StatusBadGateway, map[string]string{"error": err.Error()}); return
 	}
 	defer resp.Body.Close()
 	rb, _ := io.ReadAll(resp.Body)
 	if resp.StatusCode >= 300 {
-		// if already registered, try to look up relay id
 		if resp.StatusCode == http.StatusConflict {
 			if id := lookupRelayIDByHostname(r.Context(), client, s.MainSite, s.Hostname); id != "" {
-				s.RelayID = id
-				s.Status = "registered"
-				s.LastError = ""
-				_ = saveSetupState(s)
-				writeJSON(w, http.StatusOK, map[string]any{"state": s, "message": "Relay already registered; linked existing relay."})
-				return
+				s.RelayID = id; s.Status = "registered"; s.LastError = ""; _ = saveSetupState(s)
+				// try update after linking
+				up := map[string]any{"city":s.City,"region":s.Region,"cc":s.CC,"lat":s.Lat,"lon":s.Lon,"tz":s.TZ}
+				ub,_ := json.Marshal(up)
+				ureq,_ := http.NewRequestWithContext(r.Context(), http.MethodPost, strings.TrimRight(s.MainSite,"/")+"/api/relay/"+id+"/update", bytes.NewReader(ub))
+				ureq.Header.Set("Content-Type","application/json"); ureq.Header.Set("X-Relay-Version", Version)
+				if uresp,err := client.Do(ureq); err == nil { io.Copy(io.Discard, uresp.Body); uresp.Body.Close() }
+				writeJSON(w, http.StatusOK, map[string]any{"state":s, "message":"Relay linked and info updated."}); return
 			}
 		}
-		s.Status = "error"
-		s.LastError = string(rb)
-		_ = saveSetupState(s)
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(resp.StatusCode)
-		_, _ = w.Write(rb)
-		return
+		s.Status = "error"; s.LastError = string(rb); _ = saveSetupState(s)
+		w.Header().Set("Content-Type","application/json"); w.WriteHeader(resp.StatusCode); _,_ = w.Write(rb); return
 	}
 	var out map[string]any
 	_ = json.Unmarshal(rb, &out)
 	if id, ok := out["id"].(string); ok { s.RelayID = id }
 	if id, ok := out["relay_id"].(string); ok { s.RelayID = id }
-	s.Status = "registered"
-	s.LastError = ""
-	_ = saveSetupState(s)
+	s.Status = "registered"; s.LastError = ""; _ = saveSetupState(s)
 	writeJSON(w, http.StatusOK, map[string]any{"state": s, "response": out})
 }
 

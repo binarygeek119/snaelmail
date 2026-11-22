@@ -357,6 +357,32 @@ func (app *appState) requireRelayVersion(w http.ResponseWriter, r *http.Request)
 }
 
 // apiRelayRouter routes /api/relays/:id/* to the appropriate handler
+func (app *appState) apiUpdateRelayProfile(w http.ResponseWriter, r *http.Request, relayID uuid.UUID) {
+	if !app.requireRelayVersion(w, r) { return }
+	var req struct {
+		City   string  `json:"city"`
+		Region string  `json:"region"`
+		CC     string  `json:"cc"`
+		Lat    float64 `json:"lat"`
+		Lon    float64 `json:"lon"`
+		TZ     string  `json:"tz"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid JSON"}); return
+	}
+	if strings.TrimSpace(req.City)=="" || strings.TrimSpace(req.Region)=="" || strings.TrimSpace(req.CC)=="" {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error":"city, region, and country code are required"}); return
+	}
+	if strings.EqualFold(strings.TrimSpace(req.Region), "internet") {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error":"region must be a real location"}); return
+	}
+	if req.TZ == "" { req.TZ = "UTC" }
+	if err := app.store.UpdateRelayLocation(r.Context(), relayID, req.City, req.Region, req.CC, req.Lat, req.Lon, req.TZ); err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()}); return
+	}
+	writeJSON(w, http.StatusOK, map[string]string{"status":"ok"})
+}
+
 func (app *appState) apiRelayRouter(w http.ResponseWriter, r *http.Request) {
 	if !app.requireRelayVersion(w, r) {
 		return
@@ -420,6 +446,8 @@ func (app *appState) apiRelayActionRouter(w http.ResponseWriter, r *http.Request
 		app.apiPublishPage(w, r, id)
 	case "preview":
 		app.apiPreviewPage(w, r, id)
+	case "update":
+		app.apiUpdateRelayProfile(w, r, id)
 	case "retire":
 		app.apiRetireRelay(w, r)
 	default:
