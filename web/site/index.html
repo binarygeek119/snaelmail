@@ -39,7 +39,16 @@
         .nav-buttons {
             display: flex;
             gap: 1rem;
+            align-items: center;
         }
+        .nav-dd { position: relative; }
+        .nav-dd-btn { background: white; color:#667eea; border:2px solid #667eea; padding:.6rem 1.2rem; border-radius:25px; font-weight:500; cursor:pointer; font-size:1rem; }
+        .nav-dd-btn:hover { background:#667eea; color:white; }
+        .nav-dd-menu { display:none; position:absolute; right:0; top:calc(100% + 8px); background:white; min-width:280px; max-height:360px; overflow:auto; border-radius:12px; box-shadow:0 10px 30px rgba(0,0,0,.15); padding:.5rem; z-index:100; }
+        .nav-dd-menu.open { display:block; }
+        .nav-dd-menu a { display:block; padding:.55rem .7rem; color:#374151; text-decoration:none; border-radius:8px; }
+        .nav-dd-menu a:hover { background:#f3f4f6; color:#4f46e5; }
+        .nav-dd-menu .muted { padding:.55rem .7rem; color:#6b7280; font-size:.9rem; }
         
         .btn {
             padding: 0.6rem 1.5rem;
@@ -185,6 +194,10 @@
     <nav class="nav">
         <a href="/" class="logo">🐌 Snaelmail</a>
         <div class="nav-buttons">
+            <div class="nav-dd">
+                <button class="nav-dd-btn" id="poNavBtn" type="button">Post Offices ▾</button>
+                <div class="nav-dd-menu" id="poNavMenu"><div class="muted">Loading...</div></div>
+            </div>
             <a href="/login.html" class="btn btn-secondary">Log In</a>
             <a href="/signup.html" class="btn btn-primary">Sign Up</a>
         </div>
@@ -253,8 +266,15 @@
         const statusEl = document.getElementById('poStatus');
         const searchEl = document.getElementById('poSearch');
         const nearBtn = document.getElementById('poNearBtn');
+        const poNavBtn = document.getElementById('poNavBtn');
+        const poNavMenu = document.getElementById('poNavMenu');
         let relays = [];
         let userLoc = null;
+        if (poNavBtn && poNavMenu) {
+            poNavBtn.addEventListener('click', (e) => { e.stopPropagation(); poNavMenu.classList.toggle('open'); });
+            document.addEventListener('click', () => poNavMenu.classList.remove('open'));
+            poNavMenu.addEventListener('click', (e) => e.stopPropagation());
+        }
 
         function distKm(aLat, aLon, bLat, bLon) {
             const R = 6371, toRad = d => d * Math.PI / 180;
@@ -290,6 +310,9 @@
                     <div style="color:#777;font-size:.85rem;margin-top:.35rem;">${r._dist != null ? r._dist.toFixed(1) + ' km away · ' : ''}${r.letters_passed || 0} letters handled</div>
                 </a>
             `).join('');
+            if (poNavMenu) {
+                poNavMenu.innerHTML = items.length ? items.map(r => `<a href="/open-post-offices/${encodeURIComponent(r.hostname)}">${r.central ? '★ ' : ''}${r.city || r.hostname}${r.region ? ' — '+r.region : ''}</a>`).join('') : '<div class="muted">No post offices</div>';
+            }
         }
 
         async function load() {
