@@ -239,18 +239,21 @@ const relaySetupHTML = `<!DOCTYPE html>
 <html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Snaelmail Relay Setup</title>
 <style>
-body{font-family:system-ui,-apple-system,sans-serif;background:#f5f7fa;margin:0;color:#1f2937}
-.wrap{max-width:860px;margin:0 auto;padding:2rem 1rem}
-.card{background:#fff;border-radius:12px;padding:1.25rem;box-shadow:0 2px 10px rgba(0,0,0,.06);margin-bottom:1rem}
-h1{margin:0 0 .25rem;color:#4f46e5} p.muted{color:#6b7280;margin-top:0}
-label{display:block;font-weight:600;margin:.5rem 0 .25rem}
-input,textarea,select{width:100%;padding:.6rem;border:1px solid #d1d5db;border-radius:8px;box-sizing:border-box;margin-top:.25rem}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Oxygen,Ubuntu,Cantarell,sans-serif;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);min-height:100vh;margin:0;color:#1f2937}
+.wrap{max-width:920px;margin:0 auto;padding:2rem 1rem}
+.card{background:rgba(255,255,255,.96);border-radius:16px;padding:1.5rem;box-shadow:0 10px 30px rgba(0,0,0,.12);margin-bottom:1rem;backdrop-filter:blur(10px)}
+h1{margin:0 0 .25rem;color:#667eea;font-size:2rem} h2{color:#4b5563;margin-top:0}
+p.muted{color:#6b7280;margin-top:0}
+label{display:block;font-weight:600;margin:.5rem 0 .25rem;color:#374151}
+input,textarea,select{width:100%;padding:.7rem;border:1px solid #d1d5db;border-radius:10px;box-sizing:border-box;margin-top:.25rem;background:#fff}
+input:focus,textarea:focus,select:focus{outline:none;border-color:#667eea;box-shadow:0 0 0 3px rgba(102,126,234,.15)}
 .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:.75rem}
-.btn{background:#4f46e5;color:#fff;border:0;padding:.65rem 1rem;border-radius:8px;cursor:pointer;font-weight:600}
-.btn:hover{background:#4338ca} .btn.secondary{background:#64748b}
+.btn{background:#667eea;color:#fff;border:0;padding:.7rem 1.2rem;border-radius:25px;cursor:pointer;font-weight:600;transition:all .2s}
+.btn:hover{background:#5568d3;transform:translateY(-1px)} .btn.secondary{background:#764ba2}.btn.secondary:hover{background:#653d8f}
 .row{display:flex;gap:.5rem;flex-wrap:wrap;margin-top:.75rem}
 pre{background:#0f172a;color:#e2e8f0;padding:1rem;border-radius:8px;overflow:auto}
 .ok{color:#16a34a;font-weight:600}.err{color:#dc2626;font-weight:600}
+a{color:#667eea}
 </style></head>
 <body><div class="wrap">
   <div class="card">
@@ -302,7 +305,7 @@ pre{background:#0f172a;color:#e2e8f0;padding:1rem;border-radius:8px;overflow:aut
   </div>
 
 </div>
-<div id="verBadge" style="position:fixed;bottom:10px;right:10px;background:rgba(79,70,229,.9);color:#fff;padding:8px 12px;border-radius:6px;font-size:.85rem;font-weight:500;box-shadow:0 2px 8px rgba(0,0,0,.15);z-index:1000;">vdev</div>
+<div id="verBadge" style="position:fixed;bottom:10px;right:10px;background:rgba(102,126,234,.95);color:#fff;padding:8px 12px;border-radius:8px;font-size:.85rem;font-weight:500;box-shadow:0 2px 8px rgba(0,0,0,.15);z-index:1000;">vdev</div>
 <script>
 const TZ_LIST = ["UTC","America/New_York","America/Chicago","America/Denver","America/Los_Angeles","America/Anchorage","Pacific/Honolulu","America/Toronto","America/Vancouver","America/Sao_Paulo","Europe/London","Europe/Paris","Europe/Berlin","Europe/Madrid","Europe/Rome","Europe/Amsterdam","Europe/Stockholm","Europe/Warsaw","Europe/Athens","Europe/Helsinki","Africa/Cairo","Africa/Johannesburg","Asia/Dubai","Asia/Kolkata","Asia/Singapore","Asia/Tokyo","Asia/Seoul","Asia/Shanghai","Asia/Hong_Kong","Australia/Sydney","Australia/Melbourne","Pacific/Auckland"];
 const COUNTRIES = {
