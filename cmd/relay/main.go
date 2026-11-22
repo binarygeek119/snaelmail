@@ -16,7 +16,7 @@ import (
 	"snailmail/internal/store"
 )
 
-var Version = "dev"
+var Version = "0.5.0"
 
 type relayApp struct {
 	cfg            *config.Config
