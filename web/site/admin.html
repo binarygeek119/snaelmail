@@ -519,7 +519,7 @@
                             <td>${relay.letters_passed}</td>
                             <td>
                                 ${canActivate ? `<button class="action-btn" style="background:#22c55e;color:white;" onclick="activateRelay('${relay.id}')">Accept</button>` : ''}
-                                <button class="action-btn view" onclick="viewRelay('${relay.id}')">View</button>
+                                <button class="action-btn view" onclick="viewRelay('${relay.hostname}')">View</button>
                                 <button class="action-btn suspend" onclick="suspendRelay('${relay.id}')">Suspend</button>
                             </td>
                         `;
@@ -667,8 +667,8 @@
             }
         }
         
-        function viewRelay(id) {
-            alert('View relay: ' + id);
+        function viewRelay(hostname) {
+            window.open('/open-post-offices/' + encodeURIComponent(hostname), '_blank');
         }
 
         async function activateRelay(id) {
