@@ -39,16 +39,20 @@ func (s *Store) CreatePage(ctx context.Context, relayID uuid.UUID, manifest page
 	}
 
 	var p Page
+	var mJSON []byte
 	err = s.pool.QueryRow(ctx, `
-		INSERT INTO pages (relay_id, revision, manifest, signature, status, published_at)
+		INSERT INTO pages (relay_id, revision, manifest, sig, status, published_at)
 		VALUES ($1, (SELECT COALESCE(MAX(revision), 0) + 1 FROM pages WHERE relay_id = $1),
 		        $2, $3, $4, $5)
-		RETURNING relay_id, revision, manifest, signature, status, published_at, review_note
+		RETURNING relay_id, revision, manifest, sig, status, published_at, review_note
 	`, relayID, manifestJSON, signature, status, publishedAt).Scan(
-		&p.RelayID, &p.Revision, &p.Manifest, &p.Signature, &p.Status,
+		&p.RelayID, &p.Revision, &mJSON, &p.Signature, &p.Status,
 		&p.PublishedAt, &p.ReviewNote,
 	)
 	if err != nil {
+		return nil, err
+	}
+	if err := json.Unmarshal(mJSON, &p.Manifest); err != nil {
 		return nil, err
 	}
 	return &p, nil
