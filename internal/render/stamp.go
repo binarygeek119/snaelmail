@@ -40,7 +40,7 @@ func DefaultStampSVG(city, region, cc string) string {
     </filter>
   </defs>
   <g filter='url(#ink)' fill='none' stroke='#4b3f72' stroke-linecap='round'>
-    <polygon points='%s' fill='#f8f5ef' stroke='#4b3f72' stroke-width='1.5'/>
+    <polygon points='%s' fill='none' stroke='#4b3f72' stroke-width='1.5'/>
     <circle cx='60' cy='60' r='45' stroke-width='2.2'/>
     <circle cx='60' cy='60' r='41' stroke-width='1'/>
     <path d='M20 60 L100 60' stroke-width='0.8' opacity='0.35'/>

@@ -93,13 +93,11 @@ const pageTemplate = `<!DOCTYPE html>
     .stamp-mark {
       width: 140px;
       height: 140px;
-      border: 2px solid var(--muted);
-      border-radius: 12px;
       display: flex;
       align-items: center;
       justify-content: center;
-      background: white;
-      padding: 8px;
+      background: transparent;
+      padding: 0;
     }
     .stamp-mark svg, .stamp-mark img { max-width: 100%; max-height: 100%; }
     .photos { margin: 2rem 0; }
