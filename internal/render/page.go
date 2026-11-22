@@ -172,6 +172,7 @@ const pageTemplate = `<!DOCTYPE html>
 
   {{if .Manifest.Photos}}
   <section class="photos" id="photoGallery">
+    <h2>City Photos</h2>
     <div class="hero">
       <img id="heroImg" src="/open-post-offices/{{.Relay.Hostname}}/images/{{(index .Manifest.Photos 0).Filename}}" alt="{{(index .Manifest.Photos 0).Caption}}">
       {{if gt (len .Manifest.Photos) 1}}
