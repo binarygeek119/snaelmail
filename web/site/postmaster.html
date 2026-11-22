@@ -62,6 +62,7 @@
             <label>Region / State<input id="sgRegion" value="NY" oninput="renderStamp()"></label>
             <label>Country Code<input id="sgCC" value="US" oninput="renderStamp()"></label>
             <label>Bottom Text<input id="sgBottom" value="POST OFFICE" oninput="renderStamp()"></label>
+            <label>Outline Type<select id="sgShape" onchange="renderStamp()"><option value="serrated">Classic Serrated</option><option value="ribbon">First Place Ribbon</option><option value="usa">USA Post Office Letter</option></select></label>
             <label>Stroke Color<input id="sgStroke" type="color" value="#4b3f72" oninput="renderStamp()"></label>
             <label>SNAELMAIL Color<input id="sgTopColor" type="color" value="#4b3f72" oninput="renderStamp()"></label>
             <label>City Color<input id="sgCityColor" type="color" value="#3b2d5c" oninput="renderStamp()"></label>
@@ -82,12 +83,56 @@ const token = localStorage.getItem('authToken');
 if (!token) window.location.href = '/login.html';
 function logout(){ localStorage.removeItem('authToken'); localStorage.removeItem('userId'); window.location.href='/login.html'; }
 function esc(s){ return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
-function genStampSVG(city,region,cc,bottom,stroke,topColor,cityColor,locColor,bottomColor,fill,outline){
+function genStampSVG(city,region,cc,bottom,stroke,topColor,cityColor,locColor,bottomColor,fill,outline,shape){
   city=(city||'Snaelmail').trim().toUpperCase();
   const loc=((region||'')+' '+(cc||'')).trim().toUpperCase() || 'POST OFFICE';
   bottom=(bottom||'POST OFFICE').trim().toUpperCase();
-  const outerR=56, innerR=52, teeth=48, cx=60, cy=60; let pts=[];
-  for(let i=0;i<teeth*2;i++){ const ang=(i/(teeth*2))*Math.PI*2 - Math.PI/2; const r=i%2?innerR:outerR; pts.push((cx+r*Math.cos(ang)).toFixed(2)+','+(cy+r*Math.sin(ang)).toFixed(2)); }
+  shape = shape || 'serrated';
+  const cx=60, cy=54;
+  if(shape==='ribbon'){
+    // rosette points
+    let pts=[]; const outerR=38, innerR=32, teeth=24;
+    for(let i=0;i<teeth*2;i++){ const ang=(i/(teeth*2))*Math.PI*2 - Math.PI/2; const r=i%2?innerR:outerR; pts.push((cx+r*Math.cos(ang)).toFixed(2)+','+(cy+r*Math.sin(ang)).toFixed(2)); }
+    const edge=pts.join(' ');
+    return `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 140'>
+  <defs><filter id='ink' x='-5%' y='-5%' width='110%' height='110%'><feTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='1' result='noise'/><feDisplacementMap in='SourceGraphic' in2='noise' scale='0.6'/></filter></defs>
+  <g filter='url(#ink)' stroke-linecap='round'>
+    <path d='M42 78 L30 128 L45 120 L55 132 L60 90 Z' fill='${fill}' stroke='${stroke}' stroke-width='1.5'/>
+    <path d='M78 78 L90 128 L75 120 L65 132 L60 90 Z' fill='${fill}' stroke='${stroke}' stroke-width='1.5'/>
+    <polygon points='${edge}' fill='${fill}' stroke='${outline}' stroke-opacity='0.85' stroke-width='4'/>
+    <polygon points='${edge}' fill='none' stroke='${stroke}' stroke-width='1.5'/>
+    <circle cx='${cx}' cy='${cy}' r='28' fill='none' stroke='${stroke}' stroke-width='2'/>
+    <circle cx='${cx}' cy='${cy}' r='24' fill='none' stroke='${stroke}' stroke-width='1'/>
+    <text x='60' y='34' text-anchor='middle' font-size='6.5' font-family='Georgia,serif' fill='${topColor}' stroke='none' font-weight='700' letter-spacing='1'>SNAELMAIL</text>
+    <text x='60' y='50' text-anchor='middle' font-size='7.5' font-family='Georgia,serif' fill='${cityColor}' stroke='none' font-weight='700'>${esc(city)}</text>
+    <text x='60' y='61' text-anchor='middle' font-size='5.2' font-family='Georgia,serif' fill='${locColor}' stroke='none'>${esc(loc)}</text>
+    <text x='60' y='72' text-anchor='middle' font-size='5.8' font-family='Georgia,serif' fill='${bottomColor}' stroke='none' font-weight='700' letter-spacing='0.5'>${esc(bottom)}</text>
+  </g>
+</svg>`;
+  }
+  if(shape==='usa'){
+    // perforated rectangle stamp
+    const x=12,y=12,w=96,h=96,r=4;
+    let perf=[];
+    const step=6, pr=2.2;
+    for(let px=x+step; px<x+w-step/2; px+=step){ perf.push(`<circle cx='${px.toFixed(1)}' cy='${y}' r='${pr}' fill='white' stroke='none'/>`); perf.push(`<circle cx='${px.toFixed(1)}' cy='${y+h}' r='${pr}' fill='white' stroke='none'/>`); }
+    for(let py=y+step; py<y+h-step/2; py+=step){ perf.push(`<circle cx='${x}' cy='${py.toFixed(1)}' r='${pr}' fill='white' stroke='none'/>`); perf.push(`<circle cx='${x+w}' cy='${py.toFixed(1)}' r='${pr}' fill='white' stroke='none'/>`); }
+    return `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 120'>
+  <defs><filter id='ink' x='-5%' y='-5%' width='110%' height='110%'><feTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='1' result='noise'/><feDisplacementMap in='SourceGraphic' in2='noise' scale='0.6'/></filter></defs>
+  <g filter='url(#ink)'>
+    <rect x='${x}' y='${y}' width='${w}' height='${h}' rx='${r}' fill='${fill}' stroke='${outline}' stroke-opacity='0.85' stroke-width='4'/>
+    <rect x='${x}' y='${y}' width='${w}' height='${h}' rx='${r}' fill='none' stroke='${stroke}' stroke-width='1.8'/>
+    <rect x='18' y='18' width='84' height='84' rx='3' fill='none' stroke='${stroke}' stroke-width='1'/>
+    ${perf.join('')}
+    <text x='60' y='36' text-anchor='middle' font-size='7' font-family='Georgia,serif' fill='${topColor}' stroke='none' font-weight='700' letter-spacing='1'>SNAELMAIL</text>
+    <text x='60' y='55' text-anchor='middle' font-size='9' font-family='Georgia,serif' fill='${cityColor}' stroke='none' font-weight='700'>${esc(city)}</text>
+    <text x='60' y='68' text-anchor='middle' font-size='5.8' font-family='Georgia,serif' fill='${locColor}' stroke='none'>${esc(loc)}</text>
+    <text x='60' y='82' text-anchor='middle' font-size='6.2' font-family='Georgia,serif' fill='${bottomColor}' stroke='none' font-weight='700' letter-spacing='0.5'>${esc(bottom)}</text>
+  </g>
+</svg>`;
+  }
+  const outerR=56, innerR=52, teeth=48; let pts=[];
+  for(let i=0;i<teeth*2;i++){ const ang=(i/(teeth*2))*Math.PI*2 - Math.PI/2; const r=i%2?innerR:outerR; pts.push((60+r*Math.cos(ang)).toFixed(2)+','+(60+r*Math.sin(ang)).toFixed(2)); }
   const edge=pts.join(' ');
   return `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 120'>
   <defs><filter id='ink' x='-5%' y='-5%' width='110%' height='110%'><feTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='1' result='noise'/><feDisplacementMap in='SourceGraphic' in2='noise' scale='0.6'/></filter></defs>
@@ -104,7 +149,7 @@ function genStampSVG(city,region,cc,bottom,stroke,topColor,cityColor,locColor,bo
 </svg>`;
 }
 function renderStamp(){
-  const svg=genStampSVG(document.getElementById('sgCity').value,document.getElementById('sgRegion').value,document.getElementById('sgCC').value,document.getElementById('sgBottom').value,document.getElementById('sgStroke').value,document.getElementById('sgTopColor').value,document.getElementById('sgCityColor').value,document.getElementById('sgLocColor').value,document.getElementById('sgBottomColor').value,document.getElementById('sgFill').value,document.getElementById('sgOutline').value);
+  const svg=genStampSVG(document.getElementById('sgCity').value,document.getElementById('sgRegion').value,document.getElementById('sgCC').value,document.getElementById('sgBottom').value,document.getElementById('sgStroke').value,document.getElementById('sgTopColor').value,document.getElementById('sgCityColor').value,document.getElementById('sgLocColor').value,document.getElementById('sgBottomColor').value,document.getElementById('sgFill').value,document.getElementById('sgOutline').value,document.getElementById('sgShape').value);
   document.getElementById('stampPreview').innerHTML=svg;
   document.getElementById('svgOut').value=svg;
 }
