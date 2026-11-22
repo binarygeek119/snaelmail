@@ -54,6 +54,10 @@ type Photo struct {
 	Filename string `json:"filename"`
 	// Caption: max 120 chars
 	Caption string `json:"caption,omitempty" validate:"max=120"`
+	// Name: short title
+	Name string `json:"name,omitempty" validate:"max=120"`
+	// Info: longer description
+	Info string `json:"info,omitempty" validate:"max=300"`
 }
 
 // Logo is the city logo.

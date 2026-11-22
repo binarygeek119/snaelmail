@@ -490,7 +490,19 @@ async function loadStatus(){
 async function keygen(){ const r=await fetch('/api/setup/keygen',{method:'POST'}); const d=await r.json(); if(!r.ok){ setResult('result','err',d.error||r.status); return; } await loadStatus(); setResult('result','ok','Keypair generated.'); }
 function exportIdentity(){ const pubkey=document.getElementById('pubkey').value||''; const fp=document.getElementById('fingerprint').value||''; const host=document.getElementById('hostname').value||''; const txt='Snaelmail Relay Identity\nHostname: '+host+'\nFingerprint: '+fp+'\nPublic Key (base64): '+pubkey+'\n'; const blob=new Blob([txt],{type:'text/plain'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=(host||'relay-identity')+'.txt'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(a.href); }
 function setResult(id,cls,msg){ var el=document.getElementById(id); if(!el) return; el.innerHTML='<div class="'+cls+'">'+msg+'</div>'; }
-async function loadImages(){ const r=await fetch('/api/setup/images'); const d=await r.json(); const list=d.images||[]; const el=document.getElementById('imgList'); if(!el) return; if(!list.length){ el.innerHTML='<div class="muted">No images uploaded.</div>'; return; } el.innerHTML=list.map(function(img){ var hero=img.hero?'<span style="background:#667eea;color:white;padding:2px 8px;border-radius:999px;font-size:.75rem;">Hero</span>':'<button class="btn secondary" style="padding:.25rem .5rem;font-size:.8rem;" onclick="setHeroImage(\''+img.name+'\')">Set as Hero</button>'; return '<div style="width:180px;border:1px solid #ddd;border-radius:8px;padding:.5rem;background:#fff;"><img src="'+img.url+'" style="width:100%;height:110px;object-fit:cover;border-radius:6px;background:#f3f4f6;"><div style="font-size:.8rem;color:#555;margin:.35rem 0;word-break:break-word;">'+img.name+'</div><div style="display:flex;gap:.35rem;flex-wrap:wrap;align-items:center;">'+hero+'<button class="btn secondary" style="padding:.25rem .5rem;font-size:.8rem;" onclick="deleteImage(\''+img.name+'\')">Remove</button></div></div>'; }).join(''); }
+async function saveImageMeta(name){
+  var t=document.getElementById('meta-title-'+name); var i=document.getElementById('meta-info-'+name);
+  const r=await fetch('/api/setup/images/'+encodeURIComponent(name)+'/meta',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:t?t.value:'',info:i?i.value:''})});
+  if(r.ok) setResult('imgResult','ok','Saved image info.');
+}
+async function loadImages(){ const r=await fetch('/api/setup/images'); const d=await r.json(); const list=d.images||[]; const el=document.getElementById('imgList'); if(!el) return; if(!list.length){ el.innerHTML='<div class="muted">No images uploaded.</div>'; return; } el.innerHTML=list.map(function(img){ var hero=img.hero?'<span style="background:#667eea;color:white;padding:2px 8px;border-radius:999px;font-size:.75rem;">Hero</span>':'<button class="btn secondary" style="padding:.25rem .5rem;font-size:.8rem;" onclick="setHeroImage(\''+img.name+'\')">Set as Hero</button>'; var safe=img.name.replace(/'/g,"\\'"); var title=(img.title||'').replace(/"/g,'&quot;'); var info=(img.info||'').replace(/</g,'&lt;').replace(/"/g,'&quot;');
+  return '<div style="width:240px;border:1px solid #ddd;border-radius:8px;padding:.5rem;background:#fff;">'
+  + '<img src="'+img.url+'" style="width:100%;height:130px;object-fit:cover;border-radius:6px;background:#f3f4f6;">'
+  + '<div style="font-size:.75rem;color:#666;margin:.35rem 0;word-break:break-word;">'+img.name+'</div>'
+  + '<label style="font-size:.75rem;font-weight:600;">Name<input id="meta-title-'+img.name+'" value="'+title+'" placeholder="des moines skyline" style="width:100%;padding:.35rem;margin-top:.15rem;font-size:.85rem;"></label>'
+  + '<label style="font-size:.75rem;font-weight:600;display:block;margin-top:.35rem;">Info<textarea id="meta-info-'+img.name+'" rows="2" placeholder="des moines skyline taken by jeff ginn" style="width:100%;padding:.35rem;margin-top:.15rem;font-size:.85rem;">'+info+'</textarea></label>'
+  + '<div style="display:flex;gap:.35rem;flex-wrap:wrap;align-items:center;margin-top:.4rem;">'+hero+'<button class="btn secondary" style="padding:.25rem .5rem;font-size:.8rem;" onclick="saveImageMeta(\''+safe+'\')">Save Info</button><button class="btn secondary" style="padding:.25rem .5rem;font-size:.8rem;" onclick="deleteImage(\''+safe+'\')">Remove</button></div>'
+  + '</div>'; }).join(''); }
 async function loadMap(){ const r=await fetch('/api/setup/map'); const d=await r.json().catch(()=>({})); const m=d.map; const el=document.getElementById('mapPreview'); if(!el) return; if(!m){ el.innerHTML='<div class="muted">No map uploaded.</div>'; return; } el.innerHTML='<div style="max-width:360px;border:1px solid #ddd;border-radius:8px;padding:.5rem;background:#fff;"><img src="'+m.url+'?ts='+Date.now()+'" style="width:100%;height:180px;object-fit:cover;border-radius:6px;background:#f3f4f6;"><div style="font-size:.8rem;color:#555;margin-top:.35rem;word-break:break-word;">'+m.name+'</div></div>'; }
 async function uploadMap(){ const f=(document.getElementById('mapFile').files||[])[0]; if(!f){ setResult('mapResult','err','Choose a map image first.'); return; } const fd=new FormData(); fd.append('map',f); const r=await fetch('/api/setup/map',{method:'POST',body:fd}); const d=await r.json().catch(()=>({})); if(!r.ok){ setResult('mapResult','err','Map upload error: '+(d.error||r.status)); return; } setResult('mapResult','ok','Map uploaded.'); document.getElementById('mapFile').value=''; await loadMap(); }
 async function deleteMap(){ await fetch('/api/setup/map',{method:'DELETE'}); setResult('mapResult','ok','Map removed.'); await loadMap(); }
@@ -528,6 +540,28 @@ async function loadNotifications(){
 async function loadDashboard(){ const s=setupState||{}; document.getElementById('dashInfo').textContent=(s.hostname||'Relay')+' · '+(s.city||'')+', '+(s.region||'')+' '+(s.cc||'')+' · Status: '+(s.status||'unknown'); loadNotifications(); try{ const r=await fetch('/stats?window=today'); if(!r.ok) throw new Error('no stats'); const d=await r.json(); const sum=d.summary||{}; const through=(sum.letters_passed||sum.through||sum.total||0); const delivered=(sum.delivered||0); const sent=(sum.sent||0); const route=(sum.in_route||sum.in_transit||sum.queued||0); document.getElementById('stThrough').textContent=through; document.getElementById('stDelivered').textContent=delivered; document.getElementById('stSent').textContent=sent; document.getElementById('stRoute').textContent=route; var max=Math.max(through,delivered,sent,route,1); document.getElementById('barDelivered').style.width=(delivered/max*100)+'%'; document.getElementById('barRoute').style.width=(route/max*100)+'%'; document.getElementById('barSent').style.width=(sent/max*100)+'%'; document.getElementById('dashMsg').textContent=''; }catch(e){ document.getElementById('dashMsg').textContent='Stats unavailable (database not connected). Connect SMAIL_DSN for full mail activity charts.'; } }
 loadStatus();
 </script></body></html>`
+
+func relayImageMetaPath() string { return filepath.Join(relayImagesDir(), "meta.json") }
+func loadImageMeta() map[string]map[string]string {
+	b, err := os.ReadFile(relayImageMetaPath())
+	if err != nil { return map[string]map[string]string{} }
+	var m map[string]map[string]string
+	if json.Unmarshal(b, &m) != nil { return map[string]map[string]string{} }
+	return m
+}
+func saveImageMeta(m map[string]map[string]string) error {
+	b, _ := json.MarshalIndent(m, "", "  ")
+	return os.WriteFile(relayImageMetaPath(), b, 0644)
+}
+func (app *relayApp) setupUpdateImageMetaHandler(w http.ResponseWriter, r *http.Request) {
+	name := filepath.Base(r.PathValue("name"))
+	var req struct { Name string `json:"name"`; Info string `json:"info"` }
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil { writeJSON(w,400,map[string]string{"error":"invalid JSON"}); return }
+	m := loadImageMeta()
+	m[name] = map[string]string{"name": strings.TrimSpace(req.Name), "info": strings.TrimSpace(req.Info)}
+	if err := saveImageMeta(m); err != nil { writeJSON(w,500,map[string]string{"error":err.Error()}); return }
+	writeJSON(w, http.StatusOK, map[string]string{"status":"ok"})
+}
 
 func (app *relayApp) setupGetMapHandler(w http.ResponseWriter, r *http.Request) {
 	fn := relayMapFilename()
@@ -620,12 +654,14 @@ func sortStrings(a []string) { for i:=0;i<len(a);i++{ for j:=i+1;j<len(a);j++{ i
 
 func (app *relayApp) setupListImagesHandler(w http.ResponseWriter, r *http.Request) {
 	names := orderedImageNames()
-	type img struct { Name string `json:"name"`; Size int64 `json:"size"`; URL string `json:"url"`; Hero bool `json:"hero"` }
+	meta := loadImageMeta()
+	type img struct { Name string `json:"name"`; Size int64 `json:"size"`; URL string `json:"url"`; Hero bool `json:"hero"`; Title string `json:"title"`; Info string `json:"info"` }
 	var out []img
 	for i, n := range names {
 		info, err := os.Stat(filepath.Join(relayImagesDir(), n))
 		if err != nil { continue }
-		out = append(out, img{Name: n, Size: info.Size(), URL: "/api/setup/images/" + n, Hero: i==0})
+		m := meta[n]
+		out = append(out, img{Name: n, Size: info.Size(), URL: "/api/setup/images/" + n, Hero: i==0, Title: m["name"], Info: m["info"]})
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"images": out})
 }
@@ -721,13 +757,17 @@ func (app *relayApp) setupPublishHandler(w http.ResponseWriter, r *http.Request)
 	}
 	// build images from /config/images in hero-first order
 	names := orderedImageNames()
+	meta := loadImageMeta()
 	var images []map[string]string
 	var photos []map[string]any
 	ord := 0
 	for _, n := range names {
 		b, err := os.ReadFile(filepath.Join(relayImagesDir(), n)); if err != nil { continue }
 		images = append(images, map[string]string{"filename": n, "data": base64.StdEncoding.EncodeToString(b)})
-		photos = append(photos, map[string]any{"ord": ord, "filename": n, "caption": strings.TrimSuffix(n, filepath.Ext(n))})
+		m := meta[n]
+		caption := m["name"]
+		if caption == "" { caption = strings.TrimSuffix(n, filepath.Ext(n)) }
+		photos = append(photos, map[string]any{"ord": ord, "filename": n, "caption": caption, "name": m["name"], "info": m["info"]})
 		ord++
 		if ord >= 6 { break }
 	}
@@ -770,9 +810,13 @@ func (app *relayApp) setupPublishHandler(w http.ResponseWriter, r *http.Request)
 func (app *relayApp) localPreviewManifest(s setupState) page.Manifest {
 	names := orderedImageNames()
 	var photos []page.Photo
+	meta := loadImageMeta()
 	for ord, n := range names {
 		if ord >= 6 { break }
-		photos = append(photos, page.Photo{Ord: ord, Filename: n, Caption: strings.TrimSuffix(n, filepath.Ext(n))})
+		m := meta[n]
+		caption := m["name"]
+		if caption == "" { caption = strings.TrimSuffix(n, filepath.Ext(n)) }
+		photos = append(photos, page.Photo{Ord: ord, Filename: n, Caption: caption, Name: m["name"], Info: m["info"]})
 	}
 	if s.City == "" { s.City = "Your City" }
 	if s.Region == "" { s.Region = "Region" }
