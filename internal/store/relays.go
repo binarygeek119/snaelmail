@@ -221,14 +221,14 @@ func (s *Store) IncrementLettersPassed(ctx context.Context, id uuid.UUID) error 
 	return err
 }
 
-// ListActiveRelays returns all active, unpaused relays with valid plates.
+// ListActiveRelays returns all active, unpaused relays for public listing.
 func (s *Store) ListActiveRelays(ctx context.Context) ([]*Relay, error) {
 	rows, err := s.pool.Query(ctx, `
 		SELECT r.id, r.hostname, r.pubkey, r.key_fpr, r.city, r.region, r.cc, r.lat, r.lon, r.tz, r.stamp_svg, r.stamp_png, r.stamp_sha256,
 		       r.plate_json, r.plate_sig, r.status, r.official, r.paused, r.central, r.opened_at, r.retired_at, r.last_txt_check, r.letters_passed, r.complaints_30d,
 		       r.owner_user_id, u.handle
 		FROM relays r LEFT JOIN users u ON u.id = r.owner_user_id
-		WHERE r.status = 'active' AND r.paused = false AND (r.plate_json IS NOT NULL OR r.central = true)
+		WHERE r.status = 'active' AND r.paused = false
 		ORDER BY r.letters_passed DESC
 	`)
 	if err != nil {
