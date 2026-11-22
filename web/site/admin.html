@@ -275,6 +275,7 @@
             </div>
             
             <div id="relays-tab" class="tab-content">
+                <div id="relaysPendingNotice"></div>
                 <div id="relaysLoading" class="loading">Loading post offices...</div>
                 <table id="relaysTable" style="display: none;">
                     <thead>
@@ -446,8 +447,20 @@
                     const tbody = document.getElementById('relaysBody');
                     tbody.innerHTML = '';
                     
+                    const pending = data.relays.filter(r => r.status === 'pending' || r.status === 'unverified');
+                    const pendingNotice = document.getElementById('relaysPendingNotice');
+                    if (pendingNotice) {
+                        pendingNotice.innerHTML = pending.length > 0
+                            ? `<div style="margin-bottom:12px;padding:10px 12px;background:#fff7ed;border:1px solid #fdba74;border-radius:8px;color:#9a3412;">
+                                 <strong>${pending.length}</strong> post office(s) waiting for approval.
+                                 <a href="#relays-tab" onclick="document.querySelector('[data-tab=\\'relays\\']').click();return false;" style="color:#9a3412;font-weight:600;">Review below</a>.
+                               </div>`
+                            : '';
+                    }
+
                     data.relays.forEach(relay => {
                         const row = tbody.insertRow();
+                        const canActivate = relay.status === 'pending' || relay.status === 'unverified';
                         row.innerHTML = `
                             <td>${relay.hostname}</td>
                             <td>${relay.city}</td>
@@ -455,6 +468,7 @@
                             <td><span class="status-badge status-${relay.status}">${relay.status}</span></td>
                             <td>${relay.letters_passed}</td>
                             <td>
+                                ${canActivate ? `<button class="action-btn" style="background:#22c55e;color:white;" onclick="activateRelay('${relay.id}')">Accept</button>` : ''}
                                 <button class="action-btn view" onclick="viewRelay('${relay.id}')">View</button>
                                 <button class="action-btn suspend" onclick="suspendRelay('${relay.id}')">Suspend</button>
                             </td>
@@ -605,6 +619,25 @@
         
         function viewRelay(id) {
             alert('View relay: ' + id);
+        }
+
+        async function activateRelay(id) {
+            if (!confirm('Accept this post office and bring it online?')) return;
+            try {
+                const response = await fetch(`/api/admin/relays/${id}/activate`, {
+                    method: 'POST',
+                    headers: { 'Authorization': 'Bearer ' + token }
+                });
+                if (response.ok) {
+                    loadRelays();
+                } else {
+                    const err = await response.json().catch(() => ({}));
+                    alert(err.error || 'Error activating relay');
+                }
+            } catch (error) {
+                console.error('Error activating relay:', error);
+                alert('Error activating relay');
+            }
         }
         
         function suspendRelay(id) {

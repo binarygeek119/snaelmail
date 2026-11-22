@@ -224,6 +224,27 @@ func (app *appState) handleAdminDeleteRelay(w http.ResponseWriter, r *http.Reque
 	writeJSON(w, http.StatusOK, map[string]string{"status": "success"})
 }
 
+// handleAdminActivateRelay handles POST /api/admin/relays/{id}/activate
+func (app *appState) handleAdminActivateRelay(w http.ResponseWriter, r *http.Request) {
+	_, user := app.requireAdmin(w, r)
+	if user == nil {
+		return
+	}
+
+	relayID, err := uuid.Parse(r.PathValue("id"))
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid relay_id"})
+		return
+	}
+
+	if err := app.store.ActivateRelay(r.Context(), relayID); err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]string{"status": "success"})
+}
+
 // handleAdminActions handles GET /api/admin/actions
 func (app *appState) handleAdminActions(w http.ResponseWriter, r *http.Request) {
 	_, user := app.requireAdmin(w, r)
