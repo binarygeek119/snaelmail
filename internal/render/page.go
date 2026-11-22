@@ -100,6 +100,9 @@ const pageTemplate = `<!DOCTYPE html>
     .hero-dots { display:flex; gap:.4rem; justify-content:center; margin-top:.6rem; }
     .hero-dot { width:10px; height:10px; border-radius:999px; border:0; background:#94a3b8; cursor:pointer; }
     .hero-dot.active { background:#334155; }
+    .map { margin: 2rem 0; }
+    .map img { width: 100%; max-height: 520px; object-fit: cover; border-radius: 8px; border: 1px solid #cbd5e1; background:#e2e8f0; }
+    .map-caption { color:#334155; font-size:.9rem; margin-top:.4rem; }
     .about {
       background: var(--highlight);
       padding: 1.5rem;
@@ -199,6 +202,14 @@ const pageTemplate = `<!DOCTYPE html>
       })();
     </script>
     {{end}}
+  </section>
+  {{end}}
+
+  {{if .Manifest.Map}}
+  <section class="map">
+    <h2>City Map</h2>
+    <img src="/open-post-offices/{{.Relay.Hostname}}/images/{{.Manifest.Map.Filename}}" alt="{{if .Manifest.Map.Caption}}{{.Manifest.Map.Caption}}{{else}}{{.Relay.City}} map{{end}}">
+    {{if .Manifest.Map.Caption}}<div class="map-caption">{{.Manifest.Map.Caption}}</div>{{end}}
   </section>
   {{end}}
 

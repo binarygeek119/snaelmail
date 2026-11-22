@@ -15,6 +15,9 @@ type Manifest struct {
 	// City photos: 1-6 images, 16:10 ratio, required
 	Photos []Photo `json:"photos" validate:"required,min=1,max=6"`
 
+	// City map: optional single image
+	Map *Photo `json:"map,omitempty"`
+
 	// City logo: PNG/SVG, 64KB max
 	Logo *Logo `json:"logo,omitempty" validate:"omitempty"`
 

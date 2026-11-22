@@ -44,15 +44,16 @@ func initRelayDB(db *sql.DB) error {
 			status TEXT NOT NULL DEFAULT '',
 			last_error TEXT NOT NULL DEFAULT '',
 			owner_username TEXT NOT NULL DEFAULT '',
-			owner_api_key TEXT NOT NULL DEFAULT ''
+			owner_api_key TEXT NOT NULL DEFAULT '',
+			about TEXT NOT NULL DEFAULT ''
 		);
 		INSERT OR IGNORE INTO relay_info(id) VALUES(1);
 	`)
 	if err != nil { return err }
 	_, _ = db.Exec(`ALTER TABLE relay_info ADD COLUMN owner_username TEXT NOT NULL DEFAULT ''`)
 	_, _ = db.Exec(`ALTER TABLE relay_info ADD COLUMN owner_api_key TEXT NOT NULL DEFAULT ''`)
+	_, _ = db.Exec(`ALTER TABLE relay_info ADD COLUMN about TEXT NOT NULL DEFAULT ''`)
 	return nil
-	return err
 }
 
 func loadSetupStateDB() setupState {
@@ -62,9 +63,9 @@ func loadSetupStateDB() setupState {
 		return s
 	}
 	defer db.Close()
-	row := db.QueryRow(`SELECT main_site,hostname,city,region,cc,lat,lon,tz,pubkey,fingerprint,relay_id,status,last_error,owner_username,owner_api_key FROM relay_info WHERE id=1`)
+	row := db.QueryRow(`SELECT main_site,hostname,city,region,cc,lat,lon,tz,pubkey,fingerprint,relay_id,status,last_error,owner_username,owner_api_key,about FROM relay_info WHERE id=1`)
 	var lat, lon float64
-	if err := row.Scan(&s.MainSite, &s.Hostname, &s.City, &s.Region, &s.CC, &lat, &lon, &s.TZ, &s.Pubkey, &s.Fingerprint, &s.RelayID, &s.Status, &s.LastError, &s.OwnerUsername, &s.OwnerAPIKey); err != nil {
+	if err := row.Scan(&s.MainSite, &s.Hostname, &s.City, &s.Region, &s.CC, &lat, &lon, &s.TZ, &s.Pubkey, &s.Fingerprint, &s.RelayID, &s.Status, &s.LastError, &s.OwnerUsername, &s.OwnerAPIKey, &s.About); err != nil {
 		return setupState{MainSite: "https://snaelmail.org", TZ: "UTC"}
 	}
 	s.Lat, s.Lon = lat, lon
@@ -79,8 +80,8 @@ func saveSetupStateDB(s setupState) error {
 		return err
 	}
 	defer db.Close()
-	_, err = db.Exec(`UPDATE relay_info SET main_site=?,hostname=?,city=?,region=?,cc=?,lat=?,lon=?,tz=?,pubkey=?,fingerprint=?,relay_id=?,status=?,last_error=?,owner_username=?,owner_api_key=? WHERE id=1`,
-		s.MainSite, s.Hostname, s.City, s.Region, s.CC, s.Lat, s.Lon, s.TZ, s.Pubkey, s.Fingerprint, s.RelayID, s.Status, s.LastError, s.OwnerUsername, s.OwnerAPIKey)
+	_, err = db.Exec(`UPDATE relay_info SET main_site=?,hostname=?,city=?,region=?,cc=?,lat=?,lon=?,tz=?,pubkey=?,fingerprint=?,relay_id=?,status=?,last_error=?,owner_username=?,owner_api_key=?,about=? WHERE id=1`,
+		s.MainSite, s.Hostname, s.City, s.Region, s.CC, s.Lat, s.Lon, s.TZ, s.Pubkey, s.Fingerprint, s.RelayID, s.Status, s.LastError, s.OwnerUsername, s.OwnerAPIKey, s.About)
 	if err != nil {
 		return fmt.Errorf("save relay db: %w", err)
 	}

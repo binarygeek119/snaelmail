@@ -37,6 +37,7 @@ type setupState struct {
 	LastError     string  `json:"last_error"`
 	OwnerUsername string  `json:"owner_username"`
 	OwnerAPIKey   string  `json:"owner_api_key"`
+	About         string  `json:"about"`
 }
 
 func relayDataDir() string {
@@ -155,6 +156,7 @@ func (app *relayApp) setupRegisterHandler(w http.ResponseWriter, r *http.Request
 		StampSVG      string  `json:"stamp_svg"`
 		OwnerUsername string  `json:"owner_username"`
 		OwnerAPIKey   string  `json:"owner_api_key"`
+		About         string  `json:"about"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid JSON"})
@@ -171,6 +173,7 @@ func (app *relayApp) setupRegisterHandler(w http.ResponseWriter, r *http.Request
 	if req.TZ != "" { s.TZ = req.TZ }
 	if req.OwnerUsername != "" { s.OwnerUsername = strings.TrimSpace(req.OwnerUsername) }
 	if req.OwnerAPIKey != "" { s.OwnerAPIKey = strings.TrimSpace(req.OwnerAPIKey) }
+	if req.About != "" { s.About = strings.TrimSpace(req.About) }
 	if s.Pubkey == "" {
 		if b, err := os.ReadFile(relayPubPath()); err == nil { s.Pubkey = strings.TrimSpace(string(b)) }
 	}
@@ -276,9 +279,10 @@ input:focus,textarea:focus,select:focus{outline:none;border-color:#667eea;box-sh
     <div id="wizardSteps" class="steps hidden">
       <div class="step" data-step="1">1. Identity</div>
       <div class="step" data-step="2">2. Post Office</div>
-      <div class="step" data-step="3">3. Images</div>
-      <div class="step" data-step="4">4. Stamp</div>
-      <div class="step" data-step="5">5. Register</div>
+      <div class="step" data-step="3">3. About</div>
+      <div class="step" data-step="4">4. Images</div>
+      <div class="step" data-step="5">5. Stamp</div>
+      <div class="step" data-step="6">6. Register</div>
     </div>
   </div>
 
@@ -296,7 +300,7 @@ input:focus,textarea:focus,select:focus{outline:none;border-color:#667eea;box-sh
     </div>
 
     <div class="card wizard-step hidden" data-step="2">
-      <h2>2. Post Office Info</h2>
+      <h2>2. Post Office Info (Part 1)</h2>
       <div class="grid">
         <input id="main_site" type="hidden" value="https://snaelmail.org">
         <label>City<input id="city" placeholder="Des Moines" oninput="updateHostname()"></label>
@@ -308,11 +312,20 @@ input:focus,textarea:focus,select:focus{outline:none;border-color:#667eea;box-sh
         <label>Longitude<input id="lon" type="number" step="any" placeholder="-93.6250"></label>
       </div>
       <p class="muted" style="margin-top:.25rem;">Find your coordinates at <a href="https://www.latlong.net/" target="_blank" rel="noopener">latlong.net</a>.</p>
-      <div class="row"><button class="btn ghost" onclick="prevStep()">Back</button><button class="btn" onclick="nextStep()">Next: Images</button></div>
+      <div class="row"><button class="btn ghost" onclick="prevStep()">Back</button><button class="btn" onclick="nextStep()">Next: About</button></div>
     </div>
 
     <div class="card wizard-step hidden" data-step="3">
-      <h2>3. City Images</h2>
+      <h2>3. About This Post Office (Part 2)</h2>
+      <p class="muted">Add personal local info for your public post office page.</p>
+      <label>About <span id="aboutCityLabel">your city</span></label>
+      <textarea id="aboutText" rows="6" placeholder="Tell visitors about your post office and local area..." oninput="updateAboutCount()"></textarea>
+      <div class="muted" id="aboutCount" style="margin-top:.25rem;">0 / 900 characters (minimum 200 for publish)</div>
+      <div class="row"><button class="btn ghost" onclick="prevStep()">Back</button><button class="btn" onclick="nextStep()">Next: Images</button></div>
+    </div>
+
+    <div class="card wizard-step hidden" data-step="4">
+      <h2>4. City Images</h2>
       <p class="muted">Upload images for your post office public page. First image is the hero image.</p>
       <input id="imageFiles" type="file" accept="image/*" multiple>
       <div class="row">
@@ -322,11 +335,21 @@ input:focus,textarea:focus,select:focus{outline:none;border-color:#667eea;box-sh
       </div>
       <div id="imgResult" style="margin-top:.75rem;"></div>
       <div id="imgList" style="display:flex;flex-wrap:wrap;gap:.75rem;margin-top:.75rem;"></div>
+      <hr style="margin:1.25rem 0;border:none;border-top:1px solid #e5e7eb;">
+      <h3 style="margin:0 0 .25rem;color:#4b5563;">City Map</h3>
+      <p class="muted">Upload one map image for your city/post office (optional).</p>
+      <input id="mapFile" type="file" accept="image/*">
+      <div class="row">
+        <button class="btn secondary" onclick="uploadMap()">Upload Map</button>
+        <button class="btn ghost" onclick="deleteMap()">Remove Map</button>
+      </div>
+      <div id="mapResult" style="margin-top:.75rem;"></div>
+      <div id="mapPreview" style="margin-top:.75rem;"></div>
       <div class="row"><button class="btn ghost" onclick="prevStep()">Back</button><button class="btn" onclick="nextStep()">Next: Stamp</button></div>
     </div>
 
-    <div class="card wizard-step hidden" data-step="4">
-      <h2>4. Post Office Stamp</h2>
+    <div class="card wizard-step hidden" data-step="5">
+      <h2>5. Post Office Stamp</h2>
       <p class="muted">Use the basic vintage stamp template or upload your own SVG/PNG.</p>
       <div style="display:flex;gap:1rem;align-items:center;flex-wrap:wrap;margin:.75rem 0;">
         <img id="stampPreview" src="/api/setup/stamp/preview" style="width:120px;height:120px;object-fit:contain;border:1px solid #e5e7eb;border-radius:12px;background:#fff;padding:8px;" alt="Stamp preview">
@@ -340,8 +363,8 @@ input:focus,textarea:focus,select:focus{outline:none;border-color:#667eea;box-sh
       <div class="row"><button class="btn ghost" onclick="prevStep()">Back</button><button class="btn" onclick="nextStep()">Next: Register</button></div>
     </div>
 
-    <div class="card wizard-step hidden" data-step="5">
-      <h2>5. Register with Snaelmail</h2>
+    <div class="card wizard-step hidden" data-step="6">
+      <h2>6. Register with Snaelmail</h2>
       <p class="muted">This registers your post office with the main Snaelmail site. Only needed the first time setup is completed.</p>
       <div class="row">
         <button class="btn" onclick="registerRelay()">Register / Open Post Office</button>
@@ -431,12 +454,13 @@ function onCountryChange(){
 }
 function setSelectValue(id,val){ const el=document.getElementById(id); if(!el) return; if(val && !Array.from(el.options).some(function(o){return o.value===val;})){ const o=document.createElement('option'); o.value=val; o.textContent=val; el.appendChild(o); } if(val!=null) el.value=val; }
 function slugPart(s){ return (s||'').toLowerCase().normalize('NFKD').replace(/[^a-z0-9]+/g,'').slice(0,24); }
-function updateHostname(){ const city=document.getElementById('city').value; const region=document.getElementById('region').value; const cc=(document.getElementById('cc').value||'').toLowerCase().replace(/[^a-z]/g,'').slice(0,2); var mid=slugPart(city)||slugPart(region)||'relay'; if(mid.length<2) mid=(mid+'relay').slice(0,24); if(mid.length>24) mid=mid.slice(0,24); document.getElementById('hostname').value='po-'+mid+'-'+(cc||'xx'); refreshStampPreview(); }
+function updateHostname(){ const city=document.getElementById('city').value; const region=document.getElementById('region').value; const cc=(document.getElementById('cc').value||'').toLowerCase().replace(/[^a-z]/g,'').slice(0,2); var mid=slugPart(city)||slugPart(region)||'relay'; if(mid.length<2) mid=(mid+'relay').slice(0,24); if(mid.length>24) mid=mid.slice(0,24); document.getElementById('hostname').value='po-'+mid+'-'+(cc||'xx'); refreshStampPreview(); updateAboutCount(); }
 function showWizard(step){ document.getElementById('dashboardView').classList.add('hidden'); document.getElementById('wizardView').classList.remove('hidden'); document.getElementById('wizardSteps').classList.remove('hidden'); currentStep=step||1; document.querySelectorAll('.wizard-step').forEach(function(el){ el.classList.toggle('hidden', parseInt(el.dataset.step)!==currentStep); }); document.querySelectorAll('#wizardSteps .step').forEach(function(el){ var n=parseInt(el.dataset.step); el.classList.toggle('active',n===currentStep); el.classList.toggle('done',n<currentStep); }); }
 function showDashboard(){ document.getElementById('wizardView').classList.add('hidden'); document.getElementById('wizardSteps').classList.add('hidden'); document.getElementById('dashboardView').classList.remove('hidden'); loadDashboard(); }
-function nextStep(){ if(currentStep<5) showWizard(currentStep+1); if(currentStep===4) refreshStampPreview(); }
+function nextStep(){ if(currentStep<6) showWizard(currentStep+1); if(currentStep===5) refreshStampPreview(); }
 function prevStep(){ if(currentStep>1) showWizard(currentStep-1); }
 function refreshStampPreview(){ var img=document.getElementById('stampPreview'); if(img){ img.src='/api/setup/stamp/preview?ts='+Date.now(); } }
+function updateAboutCount(){ var t=document.getElementById('aboutText').value||''; var n=t.length; document.getElementById('aboutCount').textContent=n+' / 900 characters (minimum 200 for publish)'; var city=document.getElementById('city').value||'your city'; document.getElementById('aboutCityLabel').textContent=city; }
 async function loadStatus(){
   if(!dropdownsReady){ initLocationDropdowns(); dropdownsReady=true; }
   const r = await fetch('/api/setup/status'); const d = await r.json();
@@ -454,10 +478,12 @@ async function loadStatus(){
   if (s.fingerprint!=null) document.getElementById('fingerprint').value=s.fingerprint;
   if (s.owner_username!=null) document.getElementById('ownerUsername').value=s.owner_username;
   if (s.owner_api_key!=null) document.getElementById('ownerApiKey').value=s.owner_api_key;
+  if (s.about!=null) { document.getElementById('aboutText').value=s.about; updateAboutCount(); }
   if (s.lat!=null) document.getElementById('lat').value=s.lat;
   if (s.lon!=null) document.getElementById('lon').value=s.lon;
   updateHostname();
   await loadImages();
+  await loadMap();
   if (s.relay_id && s.status === 'registered') { showDashboard(); }
   else { showWizard(currentStep||1); }
 }
@@ -465,13 +491,16 @@ async function keygen(){ const r=await fetch('/api/setup/keygen',{method:'POST'}
 function exportIdentity(){ const pubkey=document.getElementById('pubkey').value||''; const fp=document.getElementById('fingerprint').value||''; const host=document.getElementById('hostname').value||''; const txt='Snaelmail Relay Identity\nHostname: '+host+'\nFingerprint: '+fp+'\nPublic Key (base64): '+pubkey+'\n'; const blob=new Blob([txt],{type:'text/plain'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=(host||'relay-identity')+'.txt'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(a.href); }
 function setResult(id,cls,msg){ var el=document.getElementById(id); if(!el) return; el.innerHTML='<div class="'+cls+'">'+msg+'</div>'; }
 async function loadImages(){ const r=await fetch('/api/setup/images'); const d=await r.json(); const list=d.images||[]; const el=document.getElementById('imgList'); if(!el) return; if(!list.length){ el.innerHTML='<div class="muted">No images uploaded.</div>'; return; } el.innerHTML=list.map(function(img){ var hero=img.hero?'<span style="background:#667eea;color:white;padding:2px 8px;border-radius:999px;font-size:.75rem;">Hero</span>':'<button class="btn secondary" style="padding:.25rem .5rem;font-size:.8rem;" onclick="setHeroImage(\''+img.name+'\')">Set as Hero</button>'; return '<div style="width:180px;border:1px solid #ddd;border-radius:8px;padding:.5rem;background:#fff;"><img src="'+img.url+'" style="width:100%;height:110px;object-fit:cover;border-radius:6px;background:#f3f4f6;"><div style="font-size:.8rem;color:#555;margin:.35rem 0;word-break:break-word;">'+img.name+'</div><div style="display:flex;gap:.35rem;flex-wrap:wrap;align-items:center;">'+hero+'<button class="btn secondary" style="padding:.25rem .5rem;font-size:.8rem;" onclick="deleteImage(\''+img.name+'\')">Remove</button></div></div>'; }).join(''); }
+async function loadMap(){ const r=await fetch('/api/setup/map'); const d=await r.json().catch(()=>({})); const m=d.map; const el=document.getElementById('mapPreview'); if(!el) return; if(!m){ el.innerHTML='<div class="muted">No map uploaded.</div>'; return; } el.innerHTML='<div style="max-width:360px;border:1px solid #ddd;border-radius:8px;padding:.5rem;background:#fff;"><img src="'+m.url+'?ts='+Date.now()+'" style="width:100%;height:180px;object-fit:cover;border-radius:6px;background:#f3f4f6;"><div style="font-size:.8rem;color:#555;margin-top:.35rem;word-break:break-word;">'+m.name+'</div></div>'; }
+async function uploadMap(){ const f=(document.getElementById('mapFile').files||[])[0]; if(!f){ setResult('mapResult','err','Choose a map image first.'); return; } const fd=new FormData(); fd.append('map',f); const r=await fetch('/api/setup/map',{method:'POST',body:fd}); const d=await r.json().catch(()=>({})); if(!r.ok){ setResult('mapResult','err','Map upload error: '+(d.error||r.status)); return; } setResult('mapResult','ok','Map uploaded.'); document.getElementById('mapFile').value=''; await loadMap(); }
+async function deleteMap(){ await fetch('/api/setup/map',{method:'DELETE'}); setResult('mapResult','ok','Map removed.'); await loadMap(); }
 async function uploadImages(){ const files=document.getElementById('imageFiles').files; if(!files.length){ setResult('imgResult','err','Choose image files first.'); return; } const fd=new FormData(); for(const f of files) fd.append('images',f); const r=await fetch('/api/setup/images',{method:'POST',body:fd}); const d=await r.json().catch(function(){return {};}); if(!r.ok){ setResult('imgResult','err','Upload error: '+(d.error||r.status)); return; } setResult('imgResult','ok','Saved '+(d.saved||[]).length+' image(s) to /config/images.'); document.getElementById('imageFiles').value=''; await loadImages(); }
 async function deleteImage(name){ await fetch('/api/setup/images/'+encodeURIComponent(name),{method:'DELETE'}); await loadImages(); }
 async function setHeroImage(name){ await fetch('/api/setup/images/hero',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:name})}); await loadImages(); }
 async function publishImages(){ var target=document.getElementById('imgResult')||document.getElementById('dashMsg'); if(target) target.innerHTML='<div class="muted">Syncing to main site...</div>'; const r=await fetch('/api/setup/publish',{method:'POST'}); const d=await r.json().catch(function(){return {};}); if(!r.ok){ if(target) target.innerHTML='<div class="err">Sync error: '+(d.error||JSON.stringify(d))+'</div>'; return; } if(target) target.innerHTML='<div class="ok">Synced to main site. '+(d.message||'')+'</div>'; }
 async function copyCentral(){ setResult('imgResult','muted','Copying from Central Post Office...'); const r=await fetch('/api/setup/copy-central',{method:'POST'}); const d=await r.json().catch(function(){return {};}); if(!r.ok){ setResult('imgResult','err','Copy error: '+(d.error||JSON.stringify(d))); return; } setResult('imgResult','ok','Copied '+(d.copied_photos||0)+' image(s) from Central Post Office.'); await loadImages(); }
 async function uploadStamp(){ const f=(document.getElementById('stampFile').files||[])[0]; const msg=document.getElementById('stampMsg'); if(!f){ msg.style.color='#b91c1c'; msg.textContent='Choose a stamp file first.'; return; } msg.style.color='#555'; msg.textContent='Uploading...'; const isSVG=f.type==='image/svg+xml'||f.name.toLowerCase().endsWith('.svg'); const body={stamp_svg:'',stamp_png_base64:''}; if(isSVG){ body.stamp_svg=await f.text(); } else { body.stamp_png_base64=await new Promise(function(res,rej){ const r=new FileReader(); r.onload=function(){res(String(r.result).split(',')[1]||'');}; r.onerror=rej; r.readAsDataURL(f); }); } const r=await fetch('/api/setup/stamp',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}); const d=await r.json().catch(function(){return {};}); if(r.ok){ msg.style.color='#16a34a'; msg.textContent='Upload successful. Stamp saved.'; document.getElementById('stampFile').value=''; refreshStampPreview(); } else { msg.style.color='#b91c1c'; msg.textContent='Error: '+(d.error||r.status); } }
-async function registerRelay(){ const body={main_site:document.getElementById('main_site').value,hostname:document.getElementById('hostname').value,city:document.getElementById('city').value,region:document.getElementById('region').value,cc:document.getElementById('cc').value,tz:document.getElementById('tz').value,lat:parseFloat(document.getElementById('lat').value)||0,lon:parseFloat(document.getElementById('lon').value)||0,owner_username:document.getElementById('ownerUsername').value,owner_api_key:document.getElementById('ownerApiKey').value}; setResult('registerResult','muted','Registering...'); const r=await fetch('/api/setup/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}); const d=await r.json().catch(function(){return {};}); if(!r.ok){ setResult('registerResult','err','Error: '+(d.error||JSON.stringify(d))); await loadStatus(); return; } setResult('registerResult','ok',d.message||'Registered with main site. Relay ID: '+((d.state&&d.state.relay_id)||'')); await loadStatus(); try{ await publishImages(); }catch(e){} showDashboard(); }
+async function registerRelay(){ const body={main_site:document.getElementById('main_site').value,hostname:document.getElementById('hostname').value,city:document.getElementById('city').value,region:document.getElementById('region').value,cc:document.getElementById('cc').value,tz:document.getElementById('tz').value,lat:parseFloat(document.getElementById('lat').value)||0,lon:parseFloat(document.getElementById('lon').value)||0,owner_username:document.getElementById('ownerUsername').value,owner_api_key:document.getElementById('ownerApiKey').value,about:document.getElementById('aboutText').value}; setResult('registerResult','muted','Registering...'); const r=await fetch('/api/setup/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}); const d=await r.json().catch(function(){return {};}); if(!r.ok){ setResult('registerResult','err','Error: '+(d.error||JSON.stringify(d))); await loadStatus(); return; } setResult('registerResult','ok',d.message||'Registered with main site. Relay ID: '+((d.state&&d.state.relay_id)||'')); await loadStatus(); try{ await publishImages(); }catch(e){} showDashboard(); }
 async function loadNotifications(){
   var el=document.getElementById('dashNotifs'); if(!el) return;
   var notes=[];
@@ -500,6 +529,34 @@ async function loadDashboard(){ const s=setupState||{}; document.getElementById(
 loadStatus();
 </script></body></html>`
 
+func (app *relayApp) setupGetMapHandler(w http.ResponseWriter, r *http.Request) {
+	fn := relayMapFilename()
+	if fn == "" { writeJSON(w, http.StatusOK, map[string]any{"map": nil}); return }
+	info, _ := os.Stat(filepath.Join(relayImagesDir(), fn))
+	size := int64(0); if info != nil { size = info.Size() }
+	writeJSON(w, http.StatusOK, map[string]any{"map": map[string]any{"name": fn, "size": size, "url": "/preview/images/" + fn}})
+}
+func (app *relayApp) setupUploadMapHandler(w http.ResponseWriter, r *http.Request) {
+	if err := r.ParseMultipartForm(20 << 20); err != nil { writeJSON(w,400,map[string]string{"error":"invalid multipart form"}); return }
+	f, hdr, err := r.FormFile("map")
+	if err != nil { writeJSON(w,400,map[string]string{"error":"map file required"}); return }
+	defer f.Close()
+	ext := strings.ToLower(filepath.Ext(hdr.Filename))
+	switch ext { case ".png",".jpg",".jpeg",".webp",".svg": default: writeJSON(w,400,map[string]string{"error":"unsupported image type"}); return }
+	// remove existing map.*
+	for _, e := range []string{"png","jpg","jpeg","webp","svg"} { _ = os.Remove(filepath.Join(relayImagesDir(), "map."+e)) }
+	dst := filepath.Join(relayImagesDir(), "map"+ext)
+	out, err := os.Create(dst)
+	if err != nil { writeJSON(w,500,map[string]string{"error":err.Error()}); return }
+	defer out.Close()
+	if _, err := io.Copy(out, f); err != nil { writeJSON(w,500,map[string]string{"error":err.Error()}); return }
+	writeJSON(w, http.StatusOK, map[string]any{"status":"ok","name":"map"+ext})
+}
+func (app *relayApp) setupDeleteMapHandler(w http.ResponseWriter, r *http.Request) {
+	for _, e := range []string{"png","jpg","jpeg","webp","svg"} { _ = os.Remove(filepath.Join(relayImagesDir(), "map."+e)) }
+	writeJSON(w, http.StatusOK, map[string]string{"status":"ok"})
+}
+
 func relayImagesDir() string { return filepath.Join(relayDataDir(), "images") }
 func relayImagesOrderPath() string { return filepath.Join(relayImagesDir(), "order.json") }
 
@@ -515,16 +572,28 @@ func saveImageOrder(order []string) {
 	b, _ := json.Marshal(order)
 	_ = os.WriteFile(relayImagesOrderPath(), b, 0644)
 }
+func isGalleryImageName(n string) bool {
+	ln := strings.ToLower(n)
+	if !(strings.HasSuffix(ln,".png")||strings.HasSuffix(ln,".jpg")||strings.HasSuffix(ln,".jpeg")||strings.HasSuffix(ln,".webp")||strings.HasSuffix(ln,".svg")) { return false }
+	base := strings.TrimSuffix(ln, filepath.Ext(ln))
+	if base == "map" { return false }
+	return true
+}
+func relayMapFilename() string {
+	for _, ext := range []string{"png","jpg","jpeg","webp","svg"} {
+		p := filepath.Join(relayImagesDir(), "map."+ext)
+		if _, err := os.Stat(p); err == nil { return "map."+ext }
+	}
+	return ""
+}
 func orderedImageNames() []string {
 	entries, err := os.ReadDir(relayImagesDir())
 	if err != nil { return nil }
 	exists := map[string]bool{}
 	for _, e := range entries {
 		if e.IsDir() { continue }
-		n := e.Name(); ln := strings.ToLower(n)
-		if strings.HasSuffix(ln,".png")||strings.HasSuffix(ln,".jpg")||strings.HasSuffix(ln,".jpeg")||strings.HasSuffix(ln,".webp")||strings.HasSuffix(ln,".svg") {
-			exists[n]=true
-		}
+		n := e.Name()
+		if isGalleryImageName(n) { exists[n]=true }
 	}
 	order := loadImageOrder()
 	var out []string
@@ -662,14 +731,25 @@ func (app *relayApp) setupPublishHandler(w http.ResponseWriter, r *http.Request)
 		ord++
 		if ord >= 6 { break }
 	}
+	about := strings.TrimSpace(s.About)
+	if len(about) < 200 {
+		about = fmt.Sprintf("Welcome to the %s post office in %s, %s. This Snaelmail relay is operated by a local hoster and serves the community with care, delivering messages across the network while collecting postmarks along the way. Visitors can learn about the post office, see local photos, and follow its activity as it helps connect people through thoughtful, slower mail.", s.City, s.Region, s.CC)
+	}
+	if len(about) > 900 { about = about[:900] }
 	manifest := map[string]any{
 		"photos": photos,
-		"about": fmt.Sprintf("Welcome to the %s post office in %s, %s. This relay is part of the Snaelmail network, delivering messages with care and collecting postmarks along the way.", s.City, s.Region, s.CC),
+		"about": about,
 		"facts": []map[string]string{{"key":"City","value":s.City},{"key":"Region","value":s.Region},{"key":"Country","value":s.CC}},
 		"postmaster": map[string]string{"name":"Postmaster","role":"Relay Operator","bio":"Operating this Snaelmail post office."},
 		"dispatch_times": []string{},
 		"classes": []string{"standard"},
 		"accent": map[string]string{"primary":"#333333","secondary":"#667eea","tertiary":"#764ba2","highlight":"#f5f3ff","muted":"#cccccc"},
+	}
+	if mapFn := relayMapFilename(); mapFn != "" {
+		if b, err := os.ReadFile(filepath.Join(relayImagesDir(), mapFn)); err == nil {
+			images = append(images, map[string]string{"filename": mapFn, "data": base64.StdEncoding.EncodeToString(b)})
+			manifest["map"] = map[string]any{"ord": 0, "filename": mapFn, "caption": s.City + " map"}
+		}
 	}
 	payload := map[string]any{"manifest": manifest, "images": images}
 	body, _ := json.Marshal(payload)
@@ -697,14 +777,23 @@ func (app *relayApp) localPreviewManifest(s setupState) page.Manifest {
 	if s.City == "" { s.City = "Your City" }
 	if s.Region == "" { s.Region = "Region" }
 	if s.CC == "" { s.CC = "US" }
-	return page.Manifest{
+	about := strings.TrimSpace(s.About)
+	if len(about) < 200 {
+		about = fmt.Sprintf("Welcome to the %s post office in %s, %s. This Snaelmail relay is operated by a local hoster and serves the community with care, delivering messages across the network while collecting postmarks along the way. Visitors can learn about the post office, see local photos, and follow its activity as it helps connect people through thoughtful, slower mail.", s.City, s.Region, s.CC)
+	}
+	if len(about) > 900 { about = about[:900] }
+	m := page.Manifest{
 		Photos: photos,
-		About: fmt.Sprintf("Welcome to the %s post office in %s, %s. This relay is part of the Snaelmail network, delivering messages with care and collecting postmarks along the way.", s.City, s.Region, s.CC),
+		About: about,
 		Facts: []page.Fact{{Key:"City",Value:s.City},{Key:"Region",Value:s.Region},{Key:"Country",Value:s.CC}},
 		Postmaster: page.Postmaster{Name:"Postmaster", Role:"Relay Operator", Bio:"Operating this Snaelmail post office."},
 		Classes: []string{"standard"},
 		Accent: page.Accent{Primary:"#333333",Secondary:"#667eea",Tertiary:"#764ba2",Highlight:"#f5f3ff",Muted:"#cccccc"},
 	}
+	if mapFn := relayMapFilename(); mapFn != "" {
+		m.Map = &page.Photo{Ord: 0, Filename: mapFn, Caption: s.City + " map"}
+	}
+	return m
 }
 
 func (app *relayApp) setupPreviewHandler(w http.ResponseWriter, r *http.Request) {
