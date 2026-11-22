@@ -217,6 +217,23 @@
         </div>
     </div>
     
+    <div style="max-width:1100px;margin:0 auto 3rem;padding:0 2rem;">
+        <div style="background:white;border-radius:15px;padding:2rem;box-shadow:0 10px 30px rgba(0,0,0,0.2);">
+            <div style="display:flex;justify-content:space-between;gap:1rem;flex-wrap:wrap;align-items:end;margin-bottom:1rem;">
+                <div>
+                    <h2 style="color:#667eea;margin-bottom:.25rem;">Find a Post Office</h2>
+                    <p style="color:#555;">Browse branch post offices, or use your location to find the nearest one.</p>
+                </div>
+                <div style="display:flex;gap:.5rem;flex-wrap:wrap;">
+                    <input id="poSearch" placeholder="Search city, region, hostname..." style="padding:.7rem 1rem;border:1px solid #ddd;border-radius:10px;min-width:260px;">
+                    <button class="btn btn-secondary" id="poNearBtn" type="button">Use my location</button>
+                </div>
+            </div>
+            <div id="poStatus" style="color:#666;margin-bottom:1rem;font-size:.95rem;">Loading post offices...</div>
+            <div id="poList" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:1rem;"></div>
+        </div>
+    </div>
+
     <div class="cta">
         <h2>Ready to slow down?</h2>
         <p>Be among the first to experience a new kind of email service.</p>
@@ -230,5 +247,73 @@
     </div>
     
     <div class="version-tag">v1.0.0</div>
+    <script>
+    (function() {
+        const listEl = document.getElementById('poList');
+        const statusEl = document.getElementById('poStatus');
+        const searchEl = document.getElementById('poSearch');
+        const nearBtn = document.getElementById('poNearBtn');
+        let relays = [];
+        let userLoc = null;
+
+        function distKm(aLat, aLon, bLat, bLon) {
+            const R = 6371, toRad = d => d * Math.PI / 180;
+            const dLat = toRad(bLat - aLat), dLon = toRad(bLon - aLon);
+            const s1 = Math.sin(dLat/2), s2 = Math.sin(dLon/2);
+            const h = s1*s1 + Math.cos(toRad(aLat))*Math.cos(toRad(bLat))*s2*s2;
+            return 2 * R * Math.asin(Math.min(1, Math.sqrt(h)));
+        }
+
+        function render() {
+            const q = (searchEl.value || '').toLowerCase().trim();
+            let items = relays.filter(r => {
+                if (!q) return true;
+                return [r.hostname,r.city,r.region,r.cc].filter(Boolean).join(' ').toLowerCase().includes(q);
+            });
+            items = items.map(r => ({...r, _dist: userLoc ? distKm(userLoc.lat, userLoc.lon, r.lat, r.lon) : null}));
+            items.sort((a,b) => {
+                if (a.central !== b.central) return a.central ? -1 : 1;
+                if (a._dist != null && b._dist != null) return a._dist - b._dist;
+                if (a._dist != null) return -1;
+                if (b._dist != null) return 1;
+                return (a.city||'').localeCompare(b.city||'');
+            });
+            statusEl.textContent = items.length ? `${items.length} post office(s)` + (userLoc ? ' sorted by distance' : '') : 'No post offices found.';
+            listEl.innerHTML = items.map(r => `
+                <a href="/open-post-offices/${encodeURIComponent(r.hostname)}" style="text-decoration:none;color:inherit;border:1px solid #e5e7eb;border-radius:12px;padding:1rem;display:block;background:${r.central ? '#f5f3ff' : '#fff'};">
+                    <div style="display:flex;justify-content:space-between;gap:.5rem;align-items:start;">
+                        <div style="font-weight:700;color:#4f46e5;">${r.city || r.hostname}</div>
+                        ${r.central ? '<span style="font-size:.75rem;background:#667eea;color:white;padding:.2rem .5rem;border-radius:999px;">Central</span>' : ''}
+                    </div>
+                    <div style="color:#555;margin-top:.25rem;">${[r.region,r.cc].filter(Boolean).join(', ')}</div>
+                    <div style="color:#777;font-size:.9rem;margin-top:.35rem;">${r.hostname}</div>
+                    <div style="color:#777;font-size:.85rem;margin-top:.35rem;">${r._dist != null ? r._dist.toFixed(1) + ' km away · ' : ''}${r.letters_passed || 0} letters handled</div>
+                </a>
+            `).join('');
+        }
+
+        async function load() {
+            try {
+                const res = await fetch('/open-post-offices');
+                const data = await res.json();
+                relays = data.relays || [];
+                render();
+            } catch (e) {
+                statusEl.textContent = 'Could not load post offices.';
+            }
+        }
+
+        searchEl.addEventListener('input', render);
+        nearBtn.addEventListener('click', () => {
+            if (!navigator.geolocation) { statusEl.textContent = 'Geolocation not supported by your browser.'; return; }
+            statusEl.textContent = 'Getting your location...';
+            navigator.geolocation.getCurrentPosition(pos => {
+                userLoc = { lat: pos.coords.latitude, lon: pos.coords.longitude };
+                render();
+            }, () => { statusEl.textContent = 'Could not get your location. Showing default list.'; render(); }, { timeout: 10000 });
+        });
+        load();
+    })();
+    </script>
 </body>
 </html>

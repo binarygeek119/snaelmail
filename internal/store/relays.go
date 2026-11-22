@@ -40,6 +40,7 @@ type Relay struct {
 	LastTXTCheck *time.Time
 	LettersPassed int64
 	Complaints30d int
+	BranchAPIKey  *string
 }
 
 // CreateRelay inserts a new relay.
@@ -326,4 +327,31 @@ func NewRelayDNSResolver() *RelayDNSResolver {
 
 func (r *RelayDNSResolver) LookupTXT(ctx context.Context, hostname string) ([]string, error) {
 	return r.resolver.LookupTXT(ctx, hostname)
+}
+
+// SetRelayBranchAPIKey sets the branch API key for a relay.
+func (s *Store) SetRelayBranchAPIKey(ctx context.Context, relayID uuid.UUID, key string) error {
+	_, err := s.pool.Exec(ctx, `UPDATE relays SET branch_api_key = $1 WHERE id = $2`, key, relayID)
+	return err
+}
+
+// GetRelayByBranchAPIKey fetches a relay by branch API key.
+func (s *Store) GetRelayByBranchAPIKey(ctx context.Context, key string) (*Relay, error) {
+	var r Relay
+	err := s.pool.QueryRow(ctx, `
+		SELECT id, hostname, pubkey, key_fpr, city, region, cc, lat, lon, tz, stamp_svg, stamp_png, stamp_sha256,
+		       plate_json, plate_sig, status, official, paused, central, opened_at, retired_at, last_txt_check, letters_passed, complaints_30d, branch_api_key
+		FROM relays WHERE branch_api_key = $1
+	`, key).Scan(
+		&r.ID, &r.Hostname, &r.Pubkey, &r.KeyFpr, &r.City, &r.Region, &r.CC, &r.Lat, &r.Lon, &r.TZ,
+		&r.StampSVG, &r.StampPNG, &r.StampSHA256, &r.PlateJSON, &r.PlateSig, &r.Status, &r.Official,
+		&r.Paused, &r.Central, &r.OpenedAt, &r.RetiredAt, &r.LastTXTCheck, &r.LettersPassed, &r.Complaints30d, &r.BranchAPIKey,
+	)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("get relay by branch api key: %w", err)
+	}
+	return &r, nil
 }

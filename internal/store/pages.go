@@ -120,3 +120,31 @@ func (s *Store) GetRelayReviewClean(ctx context.Context, relayID uuid.UUID) (int
 	}
 	return count, err
 }
+
+// UpsertPageAsset stores a page asset (image/logo) for a relay.
+func (s *Store) UpsertPageAsset(ctx context.Context, relayID uuid.UUID, kind, filename string, data []byte, sha [32]byte, ord int) error {
+	_, err := s.pool.Exec(ctx, `
+		DELETE FROM page_assets WHERE relay_id = $1 AND filename = $2
+	`, relayID, filename)
+	if err != nil {
+		return err
+	}
+	_, err = s.pool.Exec(ctx, `
+		INSERT INTO page_assets (id, relay_id, kind, filename, bytes, sha256, ord)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)
+	`, uuid.New(), relayID, kind, filename, data, sha[:], ord)
+	return err
+}
+
+// GetPageAsset fetches a page asset by relay and filename.
+func (s *Store) GetPageAsset(ctx context.Context, relayID uuid.UUID, filename string) ([]byte, error) {
+	var data []byte
+	err := s.pool.QueryRow(ctx, `
+		SELECT bytes FROM page_assets WHERE relay_id = $1 AND filename = $2
+		ORDER BY id DESC LIMIT 1
+	`, relayID, filename).Scan(&data)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, nil
+	}
+	return data, err
+}

@@ -212,23 +212,32 @@ func (app *appState) apiOpenPostOffice(w http.ResponseWriter, r *http.Request) {
 
 // servePageAsset serves page assets (images, logo)
 func (app *appState) servePageAsset(w http.ResponseWriter, r *http.Request, hostname, filename string) {
-	// Fetch relay
 	relay, err := app.store.GetRelayByHostname(r.Context(), hostname)
 	if err != nil || relay == nil {
 		http.NotFound(w, r)
 		return
 	}
 
-	// Fetch page
-	p, err := app.store.GetPageByRelayID(r.Context(), relay.ID)
-	if err != nil || p == nil {
+	data, err := app.store.GetPageAsset(r.Context(), relay.ID, filename)
+	if err != nil || len(data) == 0 {
 		http.NotFound(w, r)
 		return
 	}
 
-	// For now, return 404 since we don't store bundle data in the DB yet
-	// In a real implementation, we'd store the bundle as a blob or in S3
-	http.NotFound(w, r)
+	ct := "application/octet-stream"
+	switch {
+	case strings.HasSuffix(strings.ToLower(filename), ".svg"):
+		ct = "image/svg+xml"
+	case strings.HasSuffix(strings.ToLower(filename), ".png"):
+		ct = "image/png"
+	case strings.HasSuffix(strings.ToLower(filename), ".jpg"), strings.HasSuffix(strings.ToLower(filename), ".jpeg"):
+		ct = "image/jpeg"
+	case strings.HasSuffix(strings.ToLower(filename), ".webp"):
+		ct = "image/webp"
+	}
+	w.Header().Set("Content-Type", ct)
+	w.Header().Set("Cache-Control", "public, max-age=3600")
+	_, _ = w.Write(data)
 }
 
 // apiPreviewPage handles POST /api/relays/:id/preview
