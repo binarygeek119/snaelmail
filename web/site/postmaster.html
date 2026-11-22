@@ -90,23 +90,23 @@ function genStampSVG(city,region,cc,bottom,stroke,topColor,cityColor,locColor,bo
   shape = shape || 'serrated';
   const cx=60, cy=54;
   if(shape==='ribbon'){
-    // rosette points - larger to fit text
-    let pts=[]; const outerR=56, innerR=49, teeth=26;
+    // rosette points - extra large to fit text
+    let pts=[]; const outerR=58, innerR=52, teeth=28;
     for(let i=0;i<teeth*2;i++){ const ang=(i/(teeth*2))*Math.PI*2 - Math.PI/2; const r=i%2?innerR:outerR; pts.push((cx+r*Math.cos(ang)).toFixed(2)+','+(cy+r*Math.sin(ang)).toFixed(2)); }
     const edge=pts.join(' ');
-    return `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 170'>
+    return `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 175'>
   <defs><filter id='ink' x='-5%' y='-5%' width='110%' height='110%'><feTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='1' result='noise'/><feDisplacementMap in='SourceGraphic' in2='noise' scale='0.6'/></filter></defs>
   <g filter='url(#ink)' stroke-linecap='round'>
-    <path d='M36 94 L22 156 L43 143 L55 162 L60 106 Z' fill='${fill}' stroke='${stroke}' stroke-width='1.5'/>
-    <path d='M84 94 L98 156 L77 143 L65 162 L60 106 Z' fill='${fill}' stroke='${stroke}' stroke-width='1.5'/>
+    <path d='M35 96 L20 160 L42 146 L55 166 L60 108 Z' fill='${fill}' stroke='${stroke}' stroke-width='1.5'/>
+    <path d='M85 96 L100 160 L78 146 L65 166 L60 108 Z' fill='${fill}' stroke='${stroke}' stroke-width='1.5'/>
     <polygon points='${edge}' fill='${fill}' stroke='${outline}' stroke-opacity='0.85' stroke-width='4'/>
     <polygon points='${edge}' fill='none' stroke='${stroke}' stroke-width='1.5'/>
-    <circle cx='${cx}' cy='${cy}' r='43' fill='none' stroke='${stroke}' stroke-width='2.2'/>
-    <circle cx='${cx}' cy='${cy}' r='39' fill='none' stroke='${stroke}' stroke-width='1'/>
-    <text x='60' y='28' text-anchor='middle' font-size='6.8' font-family='Georgia,serif' fill='${topColor}' stroke='none' font-weight='700' letter-spacing='0.8'>SNAELMAIL</text>
-    <text x='60' y='47' text-anchor='middle' font-size='9.5' font-family='Georgia,serif' fill='${cityColor}' stroke='none' font-weight='700'>${esc(city)}</text>
-    <text x='60' y='60' text-anchor='middle' font-size='6.3' font-family='Georgia,serif' fill='${locColor}' stroke='none'>${esc(loc)}</text>
-    <text x='60' y='74' text-anchor='middle' font-size='6.8' font-family='Georgia,serif' fill='${bottomColor}' stroke='none' font-weight='700' letter-spacing='0.5'>${esc(bottom)}</text>
+    <circle cx='${cx}' cy='${cy}' r='46' fill='none' stroke='${stroke}' stroke-width='2.2'/>
+    <circle cx='${cx}' cy='${cy}' r='42' fill='none' stroke='${stroke}' stroke-width='1'/>
+    <text x='60' y='26' text-anchor='middle' font-size='6.2' font-family='Georgia,serif' fill='${topColor}' stroke='none' font-weight='700' letter-spacing='0.6'>SNAELMAIL</text>
+    <text x='60' y='46' text-anchor='middle' font-size='9.8' font-family='Georgia,serif' fill='${cityColor}' stroke='none' font-weight='700'>${esc(city)}</text>
+    <text x='60' y='60' text-anchor='middle' font-size='6.4' font-family='Georgia,serif' fill='${locColor}' stroke='none'>${esc(loc)}</text>
+    <text x='60' y='75' text-anchor='middle' font-size='6.8' font-family='Georgia,serif' fill='${bottomColor}' stroke='none' font-weight='700' letter-spacing='0.5'>${esc(bottom)}</text>
   </g>
 </svg>`;
   }
