@@ -297,6 +297,10 @@ func writeJSON(w http.ResponseWriter, status int, v any) {
 
 // startBackgroundServices launches the stamp worker and SSE publisher.
 func (app *relayApp) startBackgroundServices(ctx context.Context) {
+	if app.store == nil {
+		log.Println("relay: background services skipped (database not configured)")
+		return
+	}
 	// Stamp worker: process due hops every 15 seconds
 	stampWorker := worker.NewStampWorker(app.store.Pool(), 15*time.Second)
 	go stampWorker.Run(ctx)
