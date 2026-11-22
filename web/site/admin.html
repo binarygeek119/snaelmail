@@ -779,10 +779,27 @@
 
         async function loadCentralPageEditor(relay) {
             document.getElementById('centralViewLink').href = `/open-post-offices/${encodeURIComponent(relay.hostname)}`;
-            document.getElementById('centralAbout').value = `Welcome to the ${relay.city} post office. This is the central hub of the Snaelmail network, where messages begin their journey across virtual post offices around the world. Our team carefully handles every letter, ensuring it travels through the network with care and collects postmarks along the way.`;
-            document.getElementById('centralPMName').value = 'Postmaster';
-            document.getElementById('centralPMRole').value = 'Central Post Office';
-            document.getElementById('centralPMBio').value = 'Keeping the Snaelmail network moving, one letter at a time.';
+            let about = `Welcome to the ${relay.city} post office. This is the central hub of the Snaelmail network, where messages begin their journey across virtual post offices around the world. Our team carefully handles every letter, ensuring it travels through the network with care and collects postmarks along the way.`;
+            let pmName = 'Postmaster', pmRole = 'Central Post Office', pmBio = 'Keeping the Snaelmail network moving, one letter at a time.';
+            try {
+                const res = await fetch(`/api/admin/relays/${relay.id}/page`, { headers: { 'Authorization': 'Bearer ' + token } });
+                if (res.ok) {
+                    const data = await res.json();
+                    const p = data.page;
+                    const m = p ? (p.Manifest || p.manifest) : null;
+                    if (m) {
+                        about = m.About || m.about || about;
+                        const pm = m.Postmaster || m.postmaster || {};
+                        pmName = pm.Name || pm.name || pmName;
+                        pmRole = pm.Role || pm.role || pmRole;
+                        pmBio = pm.Bio || pm.bio || pmBio;
+                    }
+                }
+            } catch (e) { console.error(e); }
+            document.getElementById('centralAbout').value = about;
+            document.getElementById('centralPMName').value = pmName;
+            document.getElementById('centralPMRole').value = pmRole;
+            document.getElementById('centralPMBio').value = pmBio;
             document.getElementById('centralPageMsg').textContent = 'Edit the public page content and click Save Page.';
         }
 

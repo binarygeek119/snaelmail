@@ -278,6 +278,29 @@ func (app *appState) handleAdminUpdateRelayLocation(w http.ResponseWriter, r *ht
 	writeJSON(w, http.StatusOK, map[string]string{"status": "success"})
 }
 
+// handleAdminGetRelayPage handles GET /api/admin/relays/{id}/page
+func (app *appState) handleAdminGetRelayPage(w http.ResponseWriter, r *http.Request) {
+	_, user := app.requireAdmin(w, r)
+	if user == nil {
+		return
+	}
+	relayID, err := uuid.Parse(r.PathValue("id"))
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid relay_id"})
+		return
+	}
+	p, err := app.store.GetPageByRelayID(r.Context(), relayID)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		return
+	}
+	if p == nil {
+		writeJSON(w, http.StatusOK, map[string]any{"page": nil})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"page": p})
+}
+
 // handleAdminUpdateRelayStamp handles POST /api/admin/relays/{id}/stamp
 func (app *appState) handleAdminUpdateRelayStamp(w http.ResponseWriter, r *http.Request) {
 	_, user := app.requireAdmin(w, r)
