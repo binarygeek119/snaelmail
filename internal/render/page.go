@@ -60,12 +60,13 @@ const pageTemplate = `<!DOCTYPE html>
       margin-bottom: 2rem;
     }
     h1 {
-      color: var(--secondary);
+      color: #0f172a;
       margin: 0;
     }
     .meta {
-      color: var(--muted);
+      color: #1e293b;
       font-size: 0.9rem;
+      font-weight: 500;
     }
     .stamp {
       margin: 1.5rem 0;
@@ -73,7 +74,9 @@ const pageTemplate = `<!DOCTYPE html>
       align-items: center;
       gap: 1rem;
       flex-wrap: wrap;
+      color: #1e293b;
     }
+    .stamp h2, .stamp p { color: #1e293b; }
     .stamp-mark {
       width: 140px;
       height: 140px;
