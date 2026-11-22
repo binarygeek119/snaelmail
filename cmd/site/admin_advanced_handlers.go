@@ -467,3 +467,15 @@ func (app *appState) processDeliveries() {
 		}
 	}
 }
+
+// handleAdminRemoveRelay handles POST /api/admin/relays/{id}/remove
+func (app *appState) handleAdminRemoveRelay(w http.ResponseWriter, r *http.Request) {
+	_, user := app.requireAdmin(w, r)
+	if user == nil { return }
+	relayID, err := uuid.Parse(r.PathValue("id"))
+	if err != nil { writeJSON(w, http.StatusBadRequest, map[string]string{"error":"invalid relay_id"}); return }
+	if err := app.store.RetireRelay(r.Context(), relayID); err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()}); return
+	}
+	writeJSON(w, http.StatusOK, map[string]string{"status":"success"})
+}

@@ -521,6 +521,7 @@
                                 ${canActivate ? `<button class="action-btn" style="background:#22c55e;color:white;" onclick="activateRelay('${relay.id}')">Accept</button>` : ''}
                                 <button class="action-btn view" onclick="viewRelay('${relay.hostname}')">View</button>
                                 <button class="action-btn suspend" onclick="suspendRelay('${relay.id}')">Suspend</button>
+                                <button class="action-btn" style="background:#dc2626;color:white;" onclick="removeRelay('${relay.id}')">Remove</button>
                             </td>
                         `;
                     });
@@ -697,6 +698,18 @@
                 console.error('Error activating relay:', error);
                 alert('Error activating relay');
             }
+        }
+
+        async function removeRelay(id) {
+            if (!confirm('Remove this relay? This will retire it from the network.')) return;
+            try {
+                const response = await fetch(`/api/admin/relays/${id}/remove`, {
+                    method: 'POST',
+                    headers: { 'Authorization': 'Bearer ' + token }
+                });
+                if (response.ok) { loadRelays(); loadCentral(); }
+                else { const err = await response.json().catch(() => ({})); alert(err.error || 'Error removing relay'); }
+            } catch (e) { console.error(e); alert('Error removing relay'); }
         }
         
         function suspendRelay(id) {
