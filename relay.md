@@ -92,3 +92,8 @@ Optional env vars:
 
 - `SMAIL_RELAY_DIR` - config/data directory (default `~/.snailmail-relay`)
 - `SMAIL_DSN` - Postgres DSN for full relay DB-backed services (optional; setup UI works without it)
+
+## Issues & Feature Requests
+
+- [Report a bug](https://github.com/binarygeek119/snaelmail/issues/new?template=bug_report.yml)
+- [Request a feature](https://github.com/binarygeek119/snaelmail/issues/new?template=feature_request.yml)

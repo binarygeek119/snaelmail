@@ -237,10 +237,10 @@ func (app *relayApp) setupRegisterHandler(w http.ResponseWriter, r *http.Request
 
 const relaySetupHTML = `<!DOCTYPE html>
 <html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Snaelmail Relay Setup</title>
+<title>Snaelmail Relay</title>
 <style>
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Oxygen,Ubuntu,Cantarell,sans-serif;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);min-height:100vh;margin:0;color:#1f2937}
-.wrap{max-width:920px;margin:0 auto;padding:2rem 1rem}
+.wrap{max-width:980px;margin:0 auto;padding:2rem 1rem}
 .card{background:rgba(255,255,255,.96);border-radius:16px;padding:1.5rem;box-shadow:0 10px 30px rgba(0,0,0,.12);margin-bottom:1rem;backdrop-filter:blur(10px)}
 h1{margin:0 0 .25rem;color:#667eea;font-size:2rem} h2{color:#4b5563;margin-top:0}
 p.muted{color:#6b7280;margin-top:0}
@@ -250,58 +250,128 @@ input:focus,textarea:focus,select:focus{outline:none;border-color:#667eea;box-sh
 .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:.75rem}
 .btn{background:#667eea;color:#fff;border:0;padding:.7rem 1.2rem;border-radius:25px;cursor:pointer;font-weight:600;transition:all .2s}
 .btn:hover{background:#5568d3;transform:translateY(-1px)} .btn.secondary{background:#764ba2}.btn.secondary:hover{background:#653d8f}
+.btn.ghost{background:#e5e7eb;color:#374151}.btn.ghost:hover{background:#d1d5db}
 .row{display:flex;gap:.5rem;flex-wrap:wrap;margin-top:.75rem}
-pre{background:#0f172a;color:#e2e8f0;padding:1rem;border-radius:8px;overflow:auto}
 .ok{color:#16a34a;font-weight:600}.err{color:#dc2626;font-weight:600}
-a{color:#667eea}
+.steps{display:flex;gap:.5rem;flex-wrap:wrap;margin:1rem 0}
+.step{padding:.45rem .8rem;border-radius:999px;background:#e5e7eb;color:#374151;font-weight:600;font-size:.9rem}
+.step.active{background:#667eea;color:#fff}.step.done{background:#c7d2fe;color:#3730a3}
+.hidden{display:none}
+.statgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:1rem}
+.stat{background:#f8fafc;border:1px solid #e5e7eb;border-radius:12px;padding:1rem}
+.stat .k{color:#6b7280;font-size:.85rem}.stat .v{font-size:1.6rem;font-weight:700;color:#4338ca}
+.bar{height:10px;background:#e5e7eb;border-radius:999px;overflow:hidden;margin-top:.5rem}.bar>span{display:block;height:100%;background:linear-gradient(90deg,#667eea,#764ba2)}
 </style></head>
 <body><div class="wrap">
   <div class="card">
-    <h1>📮 Snaelmail Relay Setup</h1>
-    <p class="muted">Configure this post office relay and register it with the main Snaelmail site. Runs on port 8477.</p>
+    <h1>📮 Snaelmail Relay</h1>
+    <p class="muted" id="subtitle">Set up your post office relay.</p>
     <div id="status" class="muted">Loading...</div>
-  </div>
-  <div class="card">
-    <h2>1. Relay Identity</h2>
-    <p class="muted">Generate an Ed25519 keypair for this relay. Keep the private key safe.</p>
-    <div class="row"><button class="btn" onclick="keygen()">Generate Keypair</button><button class="btn secondary" onclick="exportIdentity()">Export as TXT</button></div>
-    <label>Public Key (base64)</label><textarea id="pubkey" rows="2" readonly></textarea>
-    <label>Fingerprint</label><input id="fingerprint" readonly>
-  </div>
-  <div class="card">
-    <h2>2. Register with Main Site</h2>
-    <div class="grid">
-      <input id="main_site" type="hidden" value="https://snaelmail.org">
-      <label>City<input id="city" placeholder="Des Moines" oninput="updateHostname()"></label>
-      <label>Country Code<select id="cc" onchange="onCountryChange()"></select></label>
-      <label>Region / State<select id="region" onchange="updateHostname()"></select></label>
-      <label>Hostname<input id="hostname" placeholder="po-desmoines-us" readonly style="background:#f3f4f6;"></label>
-      <label>Timezone<select id="tz"></select></label>
-      <label>Latitude<input id="lat" type="number" step="any" placeholder="41.5868"></label>
-      <label>Longitude<input id="lon" type="number" step="any" placeholder="-93.6250"></label>
+    <div id="wizardSteps" class="steps hidden">
+      <div class="step" data-step="1">1. Identity</div>
+      <div class="step" data-step="2">2. Post Office</div>
+      <div class="step" data-step="3">3. Images</div>
+      <div class="step" data-step="4">4. Stamp</div>
+      <div class="step" data-step="5">5. Register</div>
     </div>
-    <p class="muted" style="margin-top:.25rem;">Find your coordinates at <a href="https://www.latlong.net/" target="_blank" rel="noopener">latlong.net</a>.</p>
-    <label style="display:block;margin:.75rem 0 .25rem;font-weight:600;">Post Office Stamp (SVG or PNG)</label>
-    <input id="stampFile" type="file" accept=".svg,image/svg+xml,image/png" style="width:100%;">
-    <div class="row" style="margin-top:.5rem;">
-      <button class="btn secondary" type="button" onclick="uploadStamp()">Upload Stamp</button>
-      <span id="stampMsg" class="muted"></span>
-    </div>
-    <div class="row"><button class="btn" onclick="registerRelay()">Register / Open Post Office</button><button class="btn secondary" onclick="updateRelayInfo()">Update Info</button></div>
-    <div id="result" style="margin-top:.75rem;"></div>
   </div>
-  <div class="card">
-    <h2>3. City Images</h2>
-    <p class="muted">Upload images for your post office public page. Saved to <code>/config/images</code> and synced to Snaelmail on publish.</p>
-    <input id="imageFiles" type="file" accept="image/*" multiple>
-    <div class="row">
-      <button class="btn" onclick="uploadImages()">Upload Images</button>
-      <button class="btn secondary" onclick="publishImages()">Sync to Main Site</button>
-      <button class="btn secondary" onclick="copyCentral()">Copy from Central Post Office</button>
-      <a class="btn secondary" href="/preview" target="_blank" style="text-decoration:none;display:inline-block;">Preview Public Site</a>
+
+  <div id="wizardView" class="hidden">
+    <div class="card wizard-step" data-step="1">
+      <h2>1. Relay Identity</h2>
+      <p class="muted">Generate an Ed25519 keypair for this relay. Keep the private key safe.</p>
+      <div class="row"><button class="btn" onclick="keygen()">Generate Keypair</button><button class="btn secondary" onclick="exportIdentity()">Export as TXT</button></div>
+      <label>Public Key (base64)</label><textarea id="pubkey" rows="2" readonly></textarea>
+      <label>Fingerprint</label><input id="fingerprint" readonly>
+      <div id="result" style="margin-top:.75rem;"></div>
+      <div class="row"><button class="btn" onclick="nextStep()">Next: Post Office Info</button></div>
     </div>
-    <div id="imgResult" style="margin-top:.75rem;"></div>
-    <div id="imgList" style="display:flex;flex-wrap:wrap;gap:.75rem;margin-top:.75rem;"></div>
+
+    <div class="card wizard-step hidden" data-step="2">
+      <h2>2. Post Office Info</h2>
+      <div class="grid">
+        <input id="main_site" type="hidden" value="https://snaelmail.org">
+        <label>City<input id="city" placeholder="Des Moines" oninput="updateHostname()"></label>
+        <label>Country Code<select id="cc" onchange="onCountryChange()"></select></label>
+        <label>Region / State<select id="region" onchange="updateHostname()"></select></label>
+        <label>Hostname<input id="hostname" placeholder="po-desmoines-us" readonly style="background:#f3f4f6;"></label>
+        <label>Timezone<select id="tz"></select></label>
+        <label>Latitude<input id="lat" type="number" step="any" placeholder="41.5868"></label>
+        <label>Longitude<input id="lon" type="number" step="any" placeholder="-93.6250"></label>
+      </div>
+      <p class="muted" style="margin-top:.25rem;">Find your coordinates at <a href="https://www.latlong.net/" target="_blank" rel="noopener">latlong.net</a>.</p>
+      <div class="row"><button class="btn ghost" onclick="prevStep()">Back</button><button class="btn" onclick="nextStep()">Next: Images</button></div>
+    </div>
+
+    <div class="card wizard-step hidden" data-step="3">
+      <h2>3. City Images</h2>
+      <p class="muted">Upload images for your post office public page. First image is the hero image.</p>
+      <input id="imageFiles" type="file" accept="image/*" multiple>
+      <div class="row">
+        <button class="btn" onclick="uploadImages()">Upload Images</button>
+        <button class="btn secondary" onclick="copyCentral()">Copy from Central Post Office</button>
+        <a class="btn secondary" href="/preview" target="_blank" style="text-decoration:none;display:inline-block;">Preview Public Site</a>
+      </div>
+      <div id="imgResult" style="margin-top:.75rem;"></div>
+      <div id="imgList" style="display:flex;flex-wrap:wrap;gap:.75rem;margin-top:.75rem;"></div>
+      <div class="row"><button class="btn ghost" onclick="prevStep()">Back</button><button class="btn" onclick="nextStep()">Next: Stamp</button></div>
+    </div>
+
+    <div class="card wizard-step hidden" data-step="4">
+      <h2>4. Post Office Stamp</h2>
+      <p class="muted">Use the basic vintage stamp template or upload your own SVG/PNG.</p>
+      <div style="display:flex;gap:1rem;align-items:center;flex-wrap:wrap;margin:.75rem 0;">
+        <img id="stampPreview" src="/preview" style="width:120px;height:120px;object-fit:contain;border:1px solid #e5e7eb;border-radius:12px;background:#fff;padding:8px;" alt="Stamp preview" onerror="this.style.display='none'">
+        <div class="muted">Basic stamp preview uses your local city/region/country. You can also upload a custom stamp.</div>
+      </div>
+      <input id="stampFile" type="file" accept=".svg,image/svg+xml,image/png" style="width:100%;">
+      <div class="row" style="margin-top:.5rem;">
+        <button class="btn secondary" type="button" onclick="uploadStamp()">Upload Custom Stamp</button>
+        <span id="stampMsg" class="muted"></span>
+      </div>
+      <div class="row"><button class="btn ghost" onclick="prevStep()">Back</button><button class="btn" onclick="nextStep()">Next: Register</button></div>
+    </div>
+
+    <div class="card wizard-step hidden" data-step="5">
+      <h2>5. Register with Snaelmail</h2>
+      <p class="muted">This registers your post office with the main Snaelmail site. Only needed the first time setup is completed.</p>
+      <div class="row">
+        <button class="btn" onclick="registerRelay()">Register / Open Post Office</button>
+      </div>
+      <div id="registerResult" style="margin-top:.75rem;"></div>
+      <div class="row"><button class="btn ghost" onclick="prevStep()">Back</button></div>
+    </div>
+  </div>
+
+  <div id="dashboardView" class="hidden">
+    <div class="card">
+      <h2>Post Office Dashboard</h2>
+      <p class="muted" id="dashInfo"></p>
+      <div class="row">
+        <a class="btn secondary" href="/preview" target="_blank" style="text-decoration:none;display:inline-block;">Preview Public Site</a>
+        <button class="btn secondary" onclick="publishImages()">Sync to Main Site</button>
+        <button class="btn ghost" onclick="showWizard(2)">Edit Post Office</button>
+      </div>
+    </div>
+    <div class="card">
+      <h2>Notifications</h2>
+      <div id="dashNotifs"><div class="muted">Loading notifications...</div></div>
+    </div>
+    <div class="card">
+      <h2>Mail Activity</h2>
+      <div class="statgrid">
+        <div class="stat"><div class="k">Letters Through</div><div class="v" id="stThrough">-</div></div>
+        <div class="stat"><div class="k">Delivered</div><div class="v" id="stDelivered">-</div></div>
+        <div class="stat"><div class="k">Sent</div><div class="v" id="stSent">-</div></div>
+        <div class="stat"><div class="k">In Route</div><div class="v" id="stRoute">-</div></div>
+      </div>
+      <div style="margin-top:1rem;">
+        <div class="k muted">Delivered</div><div class="bar"><span id="barDelivered" style="width:0%"></span></div>
+        <div class="k muted" style="margin-top:.5rem;">In Route</div><div class="bar"><span id="barRoute" style="width:0%"></span></div>
+        <div class="k muted" style="margin-top:.5rem;">Sent</div><div class="bar"><span id="barSent" style="width:0%"></span></div>
+      </div>
+      <div id="dashMsg" class="muted" style="margin-top:.75rem;"></div>
+    </div>
   </div>
 
 </div>
@@ -335,45 +405,34 @@ const COUNTRIES = {
   "AT": {name:"Austria", regions:["Vienna","Lower Austria","Upper Austria","Styria","Tyrol"]},
   "BE": {name:"Belgium", regions:["Flanders","Wallonia","Brussels"]}
 };
+let currentStep=1; let dropdownsReady=false; let setupState={};
 function initLocationDropdowns(){
-  const tz=document.getElementById('tz');
-  tz.innerHTML = TZ_LIST.map(z=>'<option value="'+z+'">'+z+'</option>').join('');
+  const tz=document.getElementById('tz'); if(!tz) return;
+  tz.innerHTML = TZ_LIST.map(function(z){return '<option value="'+z+'">'+z+'</option>';}).join('');
   const cc=document.getElementById('cc');
-  cc.innerHTML = '<option value="">Select country</option>' + Object.keys(COUNTRIES).map(c=>'<option value="'+c+'">'+c+' - '+COUNTRIES[c].name+'</option>').join('');
+  cc.innerHTML = '<option value="">Select country</option>' + Object.keys(COUNTRIES).map(function(c){return '<option value="'+c+'">'+c+' - '+COUNTRIES[c].name+'</option>';}).join('');
   onCountryChange();
 }
 function onCountryChange(){
   const cc=document.getElementById('cc').value;
-  const region=document.getElementById('region');
-  const cur=region.value;
+  const region=document.getElementById('region'); const cur=region.value;
   const list=(COUNTRIES[cc]&&COUNTRIES[cc].regions)||[];
-  region.innerHTML = '<option value="">Select region/state</option>' + list.map(r=>'<option value="'+r+'">'+r+'</option>').join('');
+  region.innerHTML = '<option value="">Select region/state</option>' + list.map(function(r){return '<option value="'+r+'">'+r+'</option>';}).join('');
   if (list.includes(cur)) region.value=cur;
   updateHostname();
 }
-function setSelectValue(id,val){
-  const el=document.getElementById(id); if(!el) return;
-  if(val && !Array.from(el.options).some(o=>o.value===val)){ const o=document.createElement('option'); o.value=val; o.textContent=val; el.appendChild(o); }
-  if(val!=null) el.value=val;
-}
-function slugPart(s){
-  return (s||'').toLowerCase().normalize('NFKD').replace(/[^a-z0-9]+/g,'').slice(0,24);
-}
-function updateHostname(){
-  const city = document.getElementById('city').value;
-  const region = document.getElementById('region').value;
-  const cc = (document.getElementById('cc').value||'').toLowerCase().replace(/[^a-z]/g,'').slice(0,2);
-  let mid = slugPart(city) || slugPart(region) || 'relay';
-  if (mid.length < 2) mid = (mid + 'relay').slice(0,24);
-  if (mid.length > 24) mid = mid.slice(0,24);
-  const host = 'po-' + mid + '-' + (cc || 'xx');
-  document.getElementById('hostname').value = host;
-}
-let dropdownsReady=false;
+function setSelectValue(id,val){ const el=document.getElementById(id); if(!el) return; if(val && !Array.from(el.options).some(function(o){return o.value===val;})){ const o=document.createElement('option'); o.value=val; o.textContent=val; el.appendChild(o); } if(val!=null) el.value=val; }
+function slugPart(s){ return (s||'').toLowerCase().normalize('NFKD').replace(/[^a-z0-9]+/g,'').slice(0,24); }
+function updateHostname(){ const city=document.getElementById('city').value; const region=document.getElementById('region').value; const cc=(document.getElementById('cc').value||'').toLowerCase().replace(/[^a-z]/g,'').slice(0,2); var mid=slugPart(city)||slugPart(region)||'relay'; if(mid.length<2) mid=(mid+'relay').slice(0,24); if(mid.length>24) mid=mid.slice(0,24); document.getElementById('hostname').value='po-'+mid+'-'+(cc||'xx'); }
+function showWizard(step){ document.getElementById('dashboardView').classList.add('hidden'); document.getElementById('wizardView').classList.remove('hidden'); document.getElementById('wizardSteps').classList.remove('hidden'); currentStep=step||1; document.querySelectorAll('.wizard-step').forEach(function(el){ el.classList.toggle('hidden', parseInt(el.dataset.step)!==currentStep); }); document.querySelectorAll('#wizardSteps .step').forEach(function(el){ var n=parseInt(el.dataset.step); el.classList.toggle('active',n===currentStep); el.classList.toggle('done',n<currentStep); }); }
+function showDashboard(){ document.getElementById('wizardView').classList.add('hidden'); document.getElementById('wizardSteps').classList.add('hidden'); document.getElementById('dashboardView').classList.remove('hidden'); loadDashboard(); }
+function nextStep(){ if(currentStep<5) showWizard(currentStep+1); if(currentStep===4) refreshStampPreview(); }
+function prevStep(){ if(currentStep>1) showWizard(currentStep-1); }
+function refreshStampPreview(){ var img=document.getElementById('stampPreview'); if(img){ img.src='/preview?ts='+Date.now(); img.style.display='block'; } }
 async function loadStatus(){
   if(!dropdownsReady){ initLocationDropdowns(); dropdownsReady=true; }
   const r = await fetch('/api/setup/status'); const d = await r.json();
-  const s = d.state || {};
+  const s = d.state || {}; setupState=s;
   document.getElementById('status').innerHTML = 'Relay version: <b>'+(d.version||'dev')+'</b> · Status: <b>'+(s.status||'not configured')+'</b>';
   document.getElementById('verBadge').textContent = (d.version||'dev');
   document.getElementById('main_site').value = 'https://snaelmail.org';
@@ -389,126 +448,45 @@ async function loadStatus(){
   if (s.lon!=null) document.getElementById('lon').value=s.lon;
   updateHostname();
   await loadImages();
+  if (s.relay_id && s.status === 'registered') { showDashboard(); }
+  else { showWizard(currentStep||1); }
 }
-async function keygen(){
-  const r = await fetch('/api/setup/keygen',{method:'POST'}); const d = await r.json();
-  if(!r.ok){ document.getElementById('result').innerHTML='<div class="err">'+(d.error||r.status)+'</div>'; return; }
-  await loadStatus();
-  document.getElementById('result').innerHTML='<div class="ok">Keypair generated.</div>';
+async function keygen(){ const r=await fetch('/api/setup/keygen',{method:'POST'}); const d=await r.json(); if(!r.ok){ setResult('result','err',d.error||r.status); return; } await loadStatus(); setResult('result','ok','Keypair generated.'); }
+function exportIdentity(){ const pubkey=document.getElementById('pubkey').value||''; const fp=document.getElementById('fingerprint').value||''; const host=document.getElementById('hostname').value||''; const txt='Snaelmail Relay Identity\nHostname: '+host+'\nFingerprint: '+fp+'\nPublic Key (base64): '+pubkey+'\n'; const blob=new Blob([txt],{type:'text/plain'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=(host||'relay-identity')+'.txt'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(a.href); }
+function setResult(id,cls,msg){ var el=document.getElementById(id); if(!el) return; el.innerHTML='<div class="'+cls+'">'+msg+'</div>'; }
+async function loadImages(){ const r=await fetch('/api/setup/images'); const d=await r.json(); const list=d.images||[]; const el=document.getElementById('imgList'); if(!el) return; if(!list.length){ el.innerHTML='<div class="muted">No images uploaded.</div>'; return; } el.innerHTML=list.map(function(img){ var hero=img.hero?'<span style="background:#667eea;color:white;padding:2px 8px;border-radius:999px;font-size:.75rem;">Hero</span>':'<button class="btn secondary" style="padding:.25rem .5rem;font-size:.8rem;" onclick="setHeroImage(\''+img.name+'\')">Set as Hero</button>'; return '<div style="width:180px;border:1px solid #ddd;border-radius:8px;padding:.5rem;background:#fff;"><img src="'+img.url+'" style="width:100%;height:110px;object-fit:cover;border-radius:6px;background:#f3f4f6;"><div style="font-size:.8rem;color:#555;margin:.35rem 0;word-break:break-word;">'+img.name+'</div><div style="display:flex;gap:.35rem;flex-wrap:wrap;align-items:center;">'+hero+'<button class="btn secondary" style="padding:.25rem .5rem;font-size:.8rem;" onclick="deleteImage(\''+img.name+'\')">Remove</button></div></div>'; }).join(''); }
+async function uploadImages(){ const files=document.getElementById('imageFiles').files; if(!files.length){ setResult('imgResult','err','Choose image files first.'); return; } const fd=new FormData(); for(const f of files) fd.append('images',f); const r=await fetch('/api/setup/images',{method:'POST',body:fd}); const d=await r.json().catch(function(){return {};}); if(!r.ok){ setResult('imgResult','err','Upload error: '+(d.error||r.status)); return; } setResult('imgResult','ok','Saved '+(d.saved||[]).length+' image(s) to /config/images.'); document.getElementById('imageFiles').value=''; await loadImages(); }
+async function deleteImage(name){ await fetch('/api/setup/images/'+encodeURIComponent(name),{method:'DELETE'}); await loadImages(); }
+async function setHeroImage(name){ await fetch('/api/setup/images/hero',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:name})}); await loadImages(); }
+async function publishImages(){ var target=document.getElementById('imgResult')||document.getElementById('dashMsg'); if(target) target.innerHTML='<div class="muted">Syncing to main site...</div>'; const r=await fetch('/api/setup/publish',{method:'POST'}); const d=await r.json().catch(function(){return {};}); if(!r.ok){ if(target) target.innerHTML='<div class="err">Sync error: '+(d.error||JSON.stringify(d))+'</div>'; return; } if(target) target.innerHTML='<div class="ok">Synced to main site. '+(d.message||'')+'</div>'; }
+async function copyCentral(){ setResult('imgResult','muted','Copying from Central Post Office...'); const r=await fetch('/api/setup/copy-central',{method:'POST'}); const d=await r.json().catch(function(){return {};}); if(!r.ok){ setResult('imgResult','err','Copy error: '+(d.error||JSON.stringify(d))); return; } setResult('imgResult','ok','Copied '+(d.copied_photos||0)+' image(s) from Central Post Office.'); await loadImages(); }
+async function uploadStamp(){ const f=(document.getElementById('stampFile').files||[])[0]; const msg=document.getElementById('stampMsg'); if(!f){ msg.style.color='#b91c1c'; msg.textContent='Choose a stamp file first.'; return; } msg.style.color='#555'; msg.textContent='Uploading...'; const isSVG=f.type==='image/svg+xml'||f.name.toLowerCase().endsWith('.svg'); const body={stamp_svg:'',stamp_png_base64:''}; if(isSVG){ body.stamp_svg=await f.text(); } else { body.stamp_png_base64=await new Promise(function(res,rej){ const r=new FileReader(); r.onload=function(){res(String(r.result).split(',')[1]||'');}; r.onerror=rej; r.readAsDataURL(f); }); } const r=await fetch('/api/setup/stamp',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}); const d=await r.json().catch(function(){return {};}); if(r.ok){ msg.style.color='#16a34a'; msg.textContent='Upload successful. Stamp saved.'; document.getElementById('stampFile').value=''; refreshStampPreview(); } else { msg.style.color='#b91c1c'; msg.textContent='Error: '+(d.error||r.status); } }
+async function registerRelay(){ const body={main_site:document.getElementById('main_site').value,hostname:document.getElementById('hostname').value,city:document.getElementById('city').value,region:document.getElementById('region').value,cc:document.getElementById('cc').value,tz:document.getElementById('tz').value,lat:parseFloat(document.getElementById('lat').value)||0,lon:parseFloat(document.getElementById('lon').value)||0}; setResult('registerResult','muted','Registering...'); const r=await fetch('/api/setup/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}); const d=await r.json().catch(function(){return {};}); if(!r.ok){ setResult('registerResult','err','Error: '+(d.error||JSON.stringify(d))); await loadStatus(); return; } setResult('registerResult','ok',d.message||'Registered with main site. Relay ID: '+((d.state&&d.state.relay_id)||'')); await loadStatus(); try{ await publishImages(); }catch(e){} showDashboard(); }
+async function loadNotifications(){
+  var el=document.getElementById('dashNotifs'); if(!el) return;
+  var notes=[];
+  var s=setupState||{};
+  try{
+    var r=await fetch((s.main_site||'https://snaelmail.org').replace(/\/$/,'')+'/open-post-offices');
+    if(r.ok){
+      var d=await r.json(); var relays=d.relays||d||[];
+      var me=null; for(var i=0;i<relays.length;i++){ var h=relays[i].hostname||relays[i].Hostname; if(h===s.hostname){ me=relays[i]; break; } }
+      if(me){
+        var st=me.status||me.Status||'unknown';
+        if(st==='suspended' || st==='blocked') notes.push({sev:'err',msg:'Relay is '+st+'. Contact admin/mod for help.'});
+        if(st==='offline') notes.push({sev:'err',msg:'Relay is offline. Check connectivity and relay service.'});
+        if(st==='pending' || st==='unverified') notes.push({sev:'muted',msg:'Relay status: '+st+'. Waiting for admin approval/verification.'});
+        if(st==='active') notes.push({sev:'ok',msg:'Relay is active and connected.'});
+      } else {
+        notes.push({sev:'muted',msg:'Relay not found in public directory yet. It may be pending approval.'});
+      }
+    }
+  }catch(e){ notes.push({sev:'muted',msg:'Could not check main site status.'}); }
+  if(!s.relay_id) notes.push({sev:'err',msg:'Relay not registered with main site.'});
+  if(notes.length===0) notes.push({sev:'ok',msg:'No notifications.'});
+  el.innerHTML=notes.map(function(n){ return '<div class="'+n.sev+'" style="padding:.5rem 0;border-bottom:1px solid #eee;">'+n.msg+'</div>'; }).join('');
 }
-function exportIdentity(){
-  const pubkey=document.getElementById('pubkey').value||'';
-  const fp=document.getElementById('fingerprint').value||'';
-  const host=document.getElementById('hostname').value||'';
-  const txt='Snaelmail Relay Identity\n'
-    +'Hostname: '+host+'\n'
-    +'Fingerprint: '+fp+'\n'
-    +'Public Key (base64): '+pubkey+'\n';
-  const blob=new Blob([txt],{type:'text/plain'});
-  const a=document.createElement('a');
-  a.href=URL.createObjectURL(blob);
-  a.download=(host||'relay-identity')+'.txt';
-  document.body.appendChild(a); a.click(); a.remove();
-  URL.revokeObjectURL(a.href);
-}
-async function loadImages(){
-  const r = await fetch('/api/setup/images'); const d = await r.json();
-  const list = d.images || [];
-  const el = document.getElementById('imgList');
-  if(!list.length){ el.innerHTML='<div class="muted">No images uploaded.</div>'; return; }
-  el.innerHTML = list.map(function(img){ 
-    var hero = img.hero ? '<span style="background:#667eea;color:white;padding:2px 8px;border-radius:999px;font-size:.75rem;">Hero</span>' : '<button class="btn secondary" style="padding:.25rem .5rem;font-size:.8rem;" onclick="setHeroImage(\''+img.name+'\')">Set as Hero</button>';
-    return '<div style="width:180px;border:1px solid #ddd;border-radius:8px;padding:.5rem;background:#fff;">'
-    + '<img src="'+img.url+'" style="width:100%;height:110px;object-fit:cover;border-radius:6px;background:#f3f4f6;">'
-    + '<div style="font-size:.8rem;color:#555;margin:.35rem 0;word-break:break-word;">'+img.name+'</div>'
-    + '<div style="display:flex;gap:.35rem;flex-wrap:wrap;align-items:center;">'+hero+'<button class="btn secondary" style="padding:.25rem .5rem;font-size:.8rem;" onclick="deleteImage(\''+img.name+'\')">Remove</button></div>'
-    + '</div>'; }).join('');
-}
-async function uploadImages(){
-  const files = document.getElementById('imageFiles').files;
-  if(!files.length){ document.getElementById('imgResult').innerHTML='<div class="err">Choose image files first.</div>'; return; }
-  const fd = new FormData();
-  for(const f of files) fd.append('images', f);
-  const r = await fetch('/api/setup/images',{method:'POST',body:fd});
-  const d = await r.json().catch(()=>({}));
-  if(!r.ok){ document.getElementById('imgResult').innerHTML='<div class="err">Upload error: '+(d.error||r.status)+'</div>'; return; }
-  document.getElementById('imgResult').innerHTML='<div class="ok">Saved '+(d.saved||[]).length+' image(s) to /config/images.</div>';
-  document.getElementById('imageFiles').value='';
-  await loadImages();
-}
-async function deleteImage(name){
-  await fetch('/api/setup/images/'+encodeURIComponent(name),{method:'DELETE'});
-  await loadImages();
-}
-async function setHeroImage(name){
-  await fetch('/api/setup/images/hero',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name})});
-  await loadImages();
-}
-async function publishImages(){
-  document.getElementById('imgResult').innerHTML='<div class="muted">Syncing to main site...</div>';
-  const r = await fetch('/api/setup/publish',{method:'POST'});
-  const d = await r.json().catch(()=>({}));
-  if(!r.ok){ document.getElementById('imgResult').innerHTML='<div class="err">Sync error: '+(d.error||JSON.stringify(d))+'</div>'; return; }
-  document.getElementById('imgResult').innerHTML='<div class="ok">Synced to main site. '+(d.message||'')+'</div>';
-}
-async function copyCentral(){
-  document.getElementById('imgResult').innerHTML='<div class="muted">Copying from Central Post Office...</div>';
-  const r = await fetch('/api/setup/copy-central',{method:'POST'});
-  const d = await r.json().catch(()=>({}));
-  if(!r.ok){ document.getElementById('imgResult').innerHTML='<div class="err">Copy error: '+(d.error||JSON.stringify(d))+'</div>'; return; }
-  document.getElementById('imgResult').innerHTML='<div class="ok">Copied '+(d.copied_photos||0)+' image(s) from Central Post Office.</div>';
-  await loadImages();
-}
-async function uploadStamp(){
-  const f = (document.getElementById('stampFile').files||[])[0];
-  const msg = document.getElementById('stampMsg');
-  if(!f){ msg.style.color='#b91c1c'; msg.textContent='Choose a stamp file first.'; return; }
-  msg.style.color='#555'; msg.textContent='Uploading...';
-  const isSVG = f.type === 'image/svg+xml' || f.name.toLowerCase().endsWith('.svg');
-  const body = {stamp_svg:'', stamp_png_base64:''};
-  if(isSVG){ body.stamp_svg = await f.text(); }
-  else { body.stamp_png_base64 = await new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(String(r.result).split(',')[1]||''); r.onerror=rej; r.readAsDataURL(f); }); }
-  const r = await fetch('/api/setup/stamp',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
-  const d = await r.json().catch(()=>({}));
-  if(r.ok){ msg.style.color='#16a34a'; msg.textContent='Upload successful. Stamp saved.'; document.getElementById('stampFile').value=''; }
-  else { msg.style.color='#b91c1c'; msg.textContent='Error: '+(d.error||r.status); }
-}
-async function registerRelay(){
-  const body = {
-    main_site: document.getElementById('main_site').value,
-    hostname: document.getElementById('hostname').value,
-    city: document.getElementById('city').value,
-    region: document.getElementById('region').value,
-    cc: document.getElementById('cc').value,
-    tz: document.getElementById('tz').value,
-    lat: parseFloat(document.getElementById('lat').value)||0,
-    lon: parseFloat(document.getElementById('lon').value)||0
-  };
-  const r = await fetch('/api/setup/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
-  const d = await r.json().catch(()=>({}));
-  if(!r.ok){ document.getElementById('result').innerHTML='<div class="err">Error: '+(d.error||JSON.stringify(d))+'</div>'; await loadStatus(); return; }
-  document.getElementById('result').innerHTML='<div class="ok">'+(d.message||'Registered with main site. Relay ID: '+((d.state&&d.state.relay_id)||''))+'</div>';
-  await loadStatus();
-  try { await publishImages(); } catch(e) {}
-}
-async function updateRelayInfo(){
-  const body = {
-    main_site: document.getElementById('main_site').value,
-    hostname: document.getElementById('hostname').value,
-    city: document.getElementById('city').value,
-    region: document.getElementById('region').value,
-    cc: document.getElementById('cc').value,
-    tz: document.getElementById('tz').value,
-    lat: parseFloat(document.getElementById('lat').value)||0,
-    lon: parseFloat(document.getElementById('lon').value)||0
-  };
-  document.getElementById('result').innerHTML='<div class="muted">Updating info...</div>';
-  const r = await fetch('/api/setup/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
-  const d = await r.json().catch(()=>({}));
-  if(!r.ok){ document.getElementById('result').innerHTML='<div class="err">Error: '+(d.error||JSON.stringify(d))+'</div>'; await loadStatus(); return; }
-  document.getElementById('result').innerHTML='<div class="ok">'+(d.message||'Info updated on main site.')+'</div>';
-  await loadStatus();
-}
+async function loadDashboard(){ const s=setupState||{}; document.getElementById('dashInfo').textContent=(s.hostname||'Relay')+' · '+(s.city||'')+', '+(s.region||'')+' '+(s.cc||'')+' · Status: '+(s.status||'unknown'); loadNotifications(); try{ const r=await fetch('/stats?window=today'); if(!r.ok) throw new Error('no stats'); const d=await r.json(); const sum=d.summary||{}; const through=(sum.letters_passed||sum.through||sum.total||0); const delivered=(sum.delivered||0); const sent=(sum.sent||0); const route=(sum.in_route||sum.in_transit||sum.queued||0); document.getElementById('stThrough').textContent=through; document.getElementById('stDelivered').textContent=delivered; document.getElementById('stSent').textContent=sent; document.getElementById('stRoute').textContent=route; var max=Math.max(through,delivered,sent,route,1); document.getElementById('barDelivered').style.width=(delivered/max*100)+'%'; document.getElementById('barRoute').style.width=(route/max*100)+'%'; document.getElementById('barSent').style.width=(sent/max*100)+'%'; document.getElementById('dashMsg').textContent=''; }catch(e){ document.getElementById('dashMsg').textContent='Stats unavailable (database not connected). Connect SMAIL_DSN for full mail activity charts.'; } }
 loadStatus();
 </script></body></html>`
 
