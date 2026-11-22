@@ -51,8 +51,9 @@
         <div>
           <div class="stamp-box" id="stampPreview"></div>
           <div style="display:flex;gap:.5rem;margin-top:.75rem;flex-wrap:wrap;">
-            <button class="btn btn-primary" onclick="downloadStamp()">Download SVG</button>
+            <button class="btn btn-primary" onclick="downloadStamp()">Export SVG</button>
             <button class="btn btn-secondary" onclick="copyStampSVG()">Copy SVG</button>
+            <label class="btn btn-secondary" style="cursor:pointer;">Import SVG<input id="importSvg" type="file" accept=".svg,image/svg+xml" style="display:none" onchange="importStampSVG(event)"></label>
           </div>
         </div>
         <div style="flex:1;min-width:280px;">
@@ -112,6 +113,17 @@ function downloadStamp(){
   a.href=URL.createObjectURL(new Blob([svg],{type:'image/svg+xml'})); a.download='stamp.svg'; a.click(); URL.revokeObjectURL(a.href);
 }
 async function copyStampSVG(){ try{ await navigator.clipboard.writeText(document.getElementById('svgOut').value); alert('SVG copied'); }catch(e){ alert('Copy failed'); } }
+function importStampSVG(e){
+  const f=(e.target.files||[])[0]; if(!f) return;
+  const r=new FileReader();
+  r.onload=function(){
+    const svg=String(r.result||'');
+    document.getElementById('svgOut').value=svg;
+    document.getElementById('stampPreview').innerHTML=svg;
+  };
+  r.readAsText(f);
+  e.target.value='';
+}
 async function loadRelays(){
   try{
     const res=await fetch('/api/postmaster/relays',{headers:{'Authorization':'Bearer '+token}});
