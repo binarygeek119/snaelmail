@@ -17,6 +17,12 @@ import (
 )
 
 func (app *relayApp) setupRoutes(mux *http.ServeMux) {
+	// Web UI
+	mux.HandleFunc("GET /{$}", app.setupUIHandler)
+	mux.HandleFunc("GET /api/setup/status", app.setupStatusHandler)
+	mux.HandleFunc("POST /api/setup/keygen", app.setupKeygenHandler)
+	mux.HandleFunc("POST /api/setup/register", app.setupRegisterHandler)
+
 	// Health checks
 	mux.HandleFunc("GET /healthz", app.healthz)
 	mux.HandleFunc("GET /readyz", app.readyz)
