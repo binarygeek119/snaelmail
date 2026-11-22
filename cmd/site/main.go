@@ -95,7 +95,7 @@ func main() {
 	}
 
 	// Start POP3 server on port 995 (TLS)
-	pop3Server, err := pop3.NewServer(store, "995", "/etc/letsencrypt/live/snaelmail.org/fullchain.pem", "/etc/letsencrypt/live/snaelmail.org/privkey.pem")
+	pop3Server, err := pop3.NewServer(store, "995", cfg.IMAPCertFile, cfg.IMAPKeyFile)
 	if err != nil {
 		log.Printf("warning: could not start POP3 server on port 995: %v", err)
 	} else {
@@ -107,7 +107,7 @@ func main() {
 	}
 
 	// Start IMAP server on port 993 (TLS)
-	imapServer, err := imap.NewServer(store, "993", "/etc/letsencrypt/live/snaelmail.org/fullchain.pem", "/etc/letsencrypt/live/snaelmail.org/privkey.pem")
+	imapServer, err := imap.NewServer(store, "993", cfg.IMAPCertFile, cfg.IMAPKeyFile)
 	if err != nil {
 		log.Printf("warning: could not start IMAP server on port 993: %v", err)
 	} else {
@@ -119,7 +119,7 @@ func main() {
 	}
 
 	// Start SMTP submission server on port 587
-	submissionServer, err := smtp.NewSubmissionServer(store, "587", "", "")
+	submissionServer, err := smtp.NewSubmissionServer(store, "587", cfg.IMAPCertFile, cfg.IMAPKeyFile)
 	if err != nil {
 		log.Printf("warning: could not start SMTP submission server on port 587: %v", err)
 	} else {
