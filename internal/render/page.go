@@ -54,6 +54,19 @@ const pageTemplate = `<!DOCTYPE html>
       padding: 2rem;
       background: #93c5fd;
     }
+    {{if .Manifest.Photos}}
+    body::before {
+      content: "";
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      height: min(85vh, 760px);
+      background:
+        linear-gradient(to bottom, rgba(147,197,253,0.20) 0%, rgba(147,197,253,0.55) 55%, rgba(147,197,253,0.92) 85%, #93c5fd 100%),
+        url('/open-post-offices/{{.Relay.Hostname}}/images/{{(index .Manifest.Photos 0).Filename}}') center top / cover no-repeat;
+      z-index: -1;
+      pointer-events: none;
+    }
+    {{end}}
     header {
       border-bottom: 3px solid var(--secondary);
       padding-bottom: 1rem;
@@ -96,7 +109,9 @@ const pageTemplate = `<!DOCTYPE html>
     .hero-nav:hover { background: rgba(15,23,42,.75); }
     .hero-prev { left: 12px; }
     .hero-next { right: 12px; }
-    .hero-caption { position: absolute; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,.55); color: #fff; padding: .6rem .9rem; font-size: .95rem; }
+    .hero-text { margin-top:.6rem; color:#1e293b; }
+    .hero-text .name { font-weight:700; font-size:1rem; }
+    .hero-text .info { font-size:.9rem; color:#334155; margin-top:.15rem; }
     .hero-dots { display:flex; gap:.4rem; justify-content:center; margin-top:.6rem; }
     .hero-dot { width:10px; height:10px; border-radius:999px; border:0; background:#94a3b8; cursor:pointer; }
     .hero-dot.active { background:#334155; }
@@ -179,34 +194,47 @@ const pageTemplate = `<!DOCTYPE html>
       <button class="hero-nav hero-prev" type="button" aria-label="Previous image" onclick="galleryNav(-1)">&#8249;</button>
       <button class="hero-nav hero-next" type="button" aria-label="Next image" onclick="galleryNav(1)">&#8250;</button>
       {{end}}
-      <div class="hero-caption" id="heroCaption">{{(index .Manifest.Photos 0).Caption}}</div>
+    </div>
+    <div class="hero-text" id="heroText">
+      <div class="name" id="heroName">{{with (index .Manifest.Photos 0).Name}}{{.}}{{else}}{{(index .Manifest.Photos 0).Caption}}{{end}}</div>
+      <div class="info" id="heroInfo">{{with (index .Manifest.Photos 0).Info}}{{.}}{{end}}</div>
     </div>
     {{if gt (len .Manifest.Photos) 1}}
     <div class="hero-dots" id="heroDots">
       {{range $i, $p := .Manifest.Photos}}<button class="hero-dot{{if eq $i 0}} active{{end}}" type="button" aria-label="Image {{$i}}" onclick="galleryGo({{$i}})"></button>{{end}}
     </div>
+    {{end}}
     <script>
       (function(){
         var photos = [
-          {{range $i, $p := .Manifest.Photos}}{{if $i}},{{end}}{src:"/open-post-offices/{{$.Relay.Hostname}}/images/{{$p.Filename}}",caption:{{$p.Caption | printf "%q"}}}{{end}}
+          {{range $i, $p := .Manifest.Photos}}{{if $i}},{{end}}{src:"/open-post-offices/{{$.Relay.Hostname}}/images/{{$p.Filename}}",name:{{$p.Name | printf "%q"}},info:{{$p.Info | printf "%q"}},caption:{{$p.Caption | printf "%q"}}}{{end}}
         ];
         var idx = 0;
         function render(){
           var p = photos[idx];
           var img = document.getElementById('heroImg');
-          var cap = document.getElementById('heroCaption');
-          img.src = p.src; img.alt = p.caption || '';
-          cap.textContent = p.caption || '';
-          cap.style.display = p.caption ? 'block' : 'none';
+          var nameEl = document.getElementById('heroName');
+          var infoEl = document.getElementById('heroInfo');
+          var name = p.name || p.caption || '';
+          var info = p.info || '';
+          img.src = p.src; img.alt = name;
+          nameEl.textContent = name;
+          nameEl.style.display = name ? 'block' : 'none';
+          infoEl.textContent = info;
+          infoEl.style.display = info ? 'block' : 'none';
           var dots = document.querySelectorAll('.hero-dot');
           dots.forEach(function(d,i){ d.classList.toggle('active', i===idx); });
         }
-        window.galleryNav = function(d){ idx = (idx + d + photos.length) % photos.length; render(); };
-        window.galleryGo = function(i){ idx = i; render(); };
-        render();
+        var timer = null;
+        function startAuto(){ if(photos.length < 2) return; stopAuto(); timer = setInterval(function(){ window.galleryNav(1); }, 4500); }
+        function stopAuto(){ if(timer){ clearInterval(timer); timer=null; } }
+        window.galleryNav = function(d){ idx = (idx + d + photos.length) % photos.length; render(); startAuto(); };
+        window.galleryGo = function(i){ idx = i; render(); startAuto(); };
+        var gal = document.getElementById('photoGallery');
+        if(gal){ gal.addEventListener('mouseenter', stopAuto); gal.addEventListener('mouseleave', startAuto); }
+        render(); startAuto();
       })();
     </script>
-    {{end}}
   </section>
   {{end}}
 
