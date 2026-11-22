@@ -1,0 +1,25 @@
+name: Letter template
+description: Submit a letter style/template idea
+labels: ["enhancement", "letter-template"]
+body:
+  - type: input
+    id: name
+    attributes:
+      label: Template name
+      description: Short name for the letter template
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: Describe the letter style, layout, or use case.
+    validations:
+      required: true
+  - type: textarea
+    id: reference
+    attributes:
+      label: Reference / mockup
+      description: Paste a mockup, HTML/CSS snippet, or link to a reference.
+    validations:
+      required: false
