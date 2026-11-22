@@ -323,7 +323,10 @@
                         <label style="display:block;margin:.75rem 0 .25rem;font-weight:600;">City Images (up to 6)</label>
                         <div id="centralExistingPhotos" style="display:flex;flex-wrap:wrap;gap:.75rem;margin:.5rem 0;"></div>
                         <input id="centralPhotos" type="file" accept="image/*" multiple style="width:100%;">
-                        <p class="setting-description" style="color:#666;font-size:.9rem;">Selected new images will be uploaded when you click Save Page. First image is the hero image.</p>
+                        <div style="display:flex;gap:.5rem;margin-top:.5rem;">
+                            <button class="btn" type="button" onclick="uploadCentralImages()">Upload Images</button>
+                            <span style="color:#666;font-size:.9rem;align-self:center;">Or use Save Page to save everything.</span>
+                        </div>
 
                         <label style="display:block;margin:.75rem 0 .25rem;font-weight:600;">Post Office Stamp (SVG or PNG)</label>
                         <input id="centralStamp" type="file" accept=".svg,image/svg+xml,image/png" style="width:100%;">
@@ -844,6 +847,12 @@
                 r.onerror = reject;
                 r.readAsDataURL(file);
             });
+        }
+
+        async function uploadCentralImages() {
+            const files = document.getElementById('centralPhotos').files || [];
+            if (!files.length) { document.getElementById('centralPageMsg').textContent = 'Choose image files first.'; return; }
+            await saveCentralPage();
         }
 
         async function saveCentralPage() {
