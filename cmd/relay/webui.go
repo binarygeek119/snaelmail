@@ -199,7 +199,7 @@ body{font-family:system-ui,-apple-system,sans-serif;background:#f5f7fa;margin:0;
 .card{background:#fff;border-radius:12px;padding:1.25rem;box-shadow:0 2px 10px rgba(0,0,0,.06);margin-bottom:1rem}
 h1{margin:0 0 .25rem;color:#4f46e5} p.muted{color:#6b7280;margin-top:0}
 label{display:block;font-weight:600;margin:.5rem 0 .25rem}
-input,textarea{width:100%;padding:.6rem;border:1px solid #d1d5db;border-radius:8px;box-sizing:border-box}
+input,textarea,select{width:100%;padding:.6rem;border:1px solid #d1d5db;border-radius:8px;box-sizing:border-box;margin-top:.25rem}
 .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:.75rem}
 .btn{background:#4f46e5;color:#fff;border:0;padding:.65rem 1rem;border-radius:8px;cursor:pointer;font-weight:600}
 .btn:hover{background:#4338ca} .btn.secondary{background:#64748b}
