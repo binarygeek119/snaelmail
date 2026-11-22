@@ -470,8 +470,18 @@
                     const data = await response.json();
                     const tbody = document.getElementById('relaysBody');
                     tbody.innerHTML = '';
-                    
-                    const pending = data.relays.filter(r => r.status === 'pending' || r.status === 'unverified');
+                    const relays = (data.relays || []).map(r => ({
+                        ...r,
+                        id: r.id || r.ID,
+                        hostname: r.hostname || r.Hostname,
+                        city: r.city || r.City,
+                        region: r.region || r.Region,
+                        status: r.status || r.Status,
+                        letters_passed: r.letters_passed ?? r.LettersPassed ?? 0,
+                        central: r.central ?? r.Central,
+                    }));
+
+                    const pending = relays.filter(r => r.status === 'pending' || r.status === 'unverified');
                     const pendingNotice = document.getElementById('relaysPendingNotice');
                     if (pendingNotice) {
                         pendingNotice.innerHTML = pending.length > 0
@@ -482,7 +492,7 @@
                             : '';
                     }
 
-                    data.relays.forEach(relay => {
+                    relays.forEach(relay => {
                         const row = tbody.insertRow();
                         const canActivate = relay.status === 'pending' || relay.status === 'unverified';
                         row.innerHTML = `
@@ -687,7 +697,20 @@
                 });
                 if (!response.ok) { loading.textContent = 'Failed to load central post office.'; return; }
                 const data = await response.json();
-                const centralRelay = (data.relays || []).find(r => r.central === true);
+                const raw = (data.relays || []).find(r => r.central === true || r.Central === true);
+                const centralRelay = raw ? {
+                    ...raw,
+                    id: raw.id || raw.ID,
+                    hostname: raw.hostname || raw.Hostname,
+                    city: raw.city || raw.City,
+                    region: raw.region || raw.Region,
+                    cc: raw.cc || raw.CC,
+                    status: raw.status || raw.Status,
+                    letters_passed: raw.letters_passed ?? raw.LettersPassed ?? 0,
+                    opened_at: raw.opened_at || raw.OpenedAt,
+                    lat: raw.lat ?? raw.Lat,
+                    lon: raw.lon ?? raw.Lon,
+                } : null;
                 centralRelayCache = centralRelay;
                 if (!centralRelay) {
                     loading.style.display = 'none';
