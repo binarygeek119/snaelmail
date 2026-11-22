@@ -1,0 +1,25 @@
+name: Stamp template
+description: Submit a post office stamp template idea or SVG
+labels: ["enhancement", "stamp-template"]
+body:
+  - type: input
+    id: name
+    attributes:
+      label: Template name
+      description: Short name for the stamp template
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: Describe the stamp style and what makes it unique.
+    validations:
+      required: true
+  - type: textarea
+    id: svg
+    attributes:
+      label: SVG or reference
+      description: Paste SVG markup, attach an image, or link to a reference.
+    validations:
+      required: false
