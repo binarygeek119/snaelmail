@@ -233,15 +233,6 @@ const pageTemplate = `<!DOCTYPE html>
   </section>
   {{end}}
 
-  {{if .Manifest.Classes}}
-  <section>
-    <h2>Classes Handled</h2>
-    <ul>
-      {{range .Manifest.Classes}}<li>{{.}}</li>{{end}}
-    </ul>
-  </section>
-  {{end}}
-
   <footer>
     <p>
       <strong>{{.Relay.Hostname}}</strong><br>
