@@ -49,23 +49,31 @@ func relayKeyPath() string   { return filepath.Join(relayDataDir(), "relay.key")
 func relayPubPath() string   { return filepath.Join(relayDataDir(), "relay.pub") }
 
 func loadSetupState() setupState {
-	b, err := os.ReadFile(relayStatePath())
-	if err != nil {
-		return setupState{MainSite: "https://snaelmail.org", TZ: "UTC"}
+	s := loadSetupStateDB()
+	// migrate from legacy JSON if DB is empty
+	if s.Hostname == "" && s.Pubkey == "" && s.RelayID == "" {
+		b, err := os.ReadFile(relayStatePath())
+		if err == nil {
+			var js setupState
+			if json.Unmarshal(b, &js) == nil && (js.Hostname != "" || js.Pubkey != "" || js.RelayID != "") {
+				if js.MainSite == "" { js.MainSite = "https://snaelmail.org" }
+				if js.TZ == "" { js.TZ = "UTC" }
+				_ = saveSetupStateDB(js)
+				return js
+			}
+		}
 	}
-	var s setupState
-	if json.Unmarshal(b, &s) != nil {
-		return setupState{MainSite: "https://snaelmail.org", TZ: "UTC"}
-	}
-	if s.MainSite == "" { s.MainSite = "https://snaelmail.org" }
-	if s.TZ == "" { s.TZ = "UTC" }
 	return s
 }
 
 func saveSetupState(s setupState) error {
-	if err := os.MkdirAll(relayDataDir(), 0700); err != nil { return err }
-	b, _ := json.MarshalIndent(s, "", "  ")
-	return os.WriteFile(relayStatePath(), b, 0600)
+	if err := saveSetupStateDB(s); err != nil { return err }
+	// keep legacy JSON in sync for compatibility
+	if err := os.MkdirAll(relayDataDir(), 0700); err == nil {
+		b, _ := json.MarshalIndent(s, "", "  ")
+		_ = os.WriteFile(relayStatePath(), b, 0600)
+	}
+	return nil
 }
 
 func (app *relayApp) setupUIHandler(w http.ResponseWriter, r *http.Request) {

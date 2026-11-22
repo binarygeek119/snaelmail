@@ -10,9 +10,11 @@ RUN CGO_ENABLED=0 GOOS=linux go build -buildvcs=false -ldflags "-X main.Version=
 # Runtime stage
 FROM debian:bookworm-slim
 RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates tzdata && rm -rf /var/lib/apt/lists/*
-RUN useradd -m -u 10001 relay
+RUN useradd -m -u 10001 relay && mkdir -p /config && chown relay:relay /config
 WORKDIR /app
 COPY --from=builder /out/snailmail-relay /usr/local/bin/snailmail-relay
+ENV SMAIL_RELAY_DIR=/config
 USER relay
+VOLUME ["/config"]
 EXPOSE 8477
 ENTRYPOINT ["/usr/local/bin/snailmail-relay"]
