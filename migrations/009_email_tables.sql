@@ -52,4 +52,3 @@ CREATE TABLE IF NOT EXISTS outbound_queue (
 
 CREATE INDEX IF NOT EXISTS outbound_queue_status_idx ON outbound_queue(status);
 CREATE INDEX IF NOT EXISTS outbound_queue_next_retry_idx ON outbound_queue(next_retry);
-EOF
