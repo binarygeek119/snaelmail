@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Post Offices - Snaelmail</title>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);min-height:100vh;color:#1f2937}
+    .nav{background:rgba(255,255,255,.95);backdrop-filter:blur(10px);padding:1rem 2rem;display:flex;justify-content:space-between;align-items:center;box-shadow:0 2px 10px rgba(0,0,0,.1)}
+    .logo{font-size:1.8rem;font-weight:bold;color:#667eea;text-decoration:none}
+    .nav-links{display:flex;gap:1rem;align-items:center}
+    .btn{padding:.6rem 1.2rem;border-radius:25px;text-decoration:none;font-weight:500;border:2px solid #667eea;color:#667eea;background:#fff}
+    .btn:hover{background:#667eea;color:#fff}
+    .wrap{max-width:1100px;margin:2rem auto;padding:0 1rem}
+    .card{background:rgba(255,255,255,.96);border-radius:16px;padding:1.5rem;box-shadow:0 10px 30px rgba(0,0,0,.12)}
+    h1{color:#667eea;margin-bottom:.25rem} .muted{color:#6b7280}
+    .toolbar{display:flex;gap:.5rem;flex-wrap:wrap;margin:1rem 0}
+    input{padding:.7rem 1rem;border:1px solid #ddd;border-radius:10px;min-width:260px}
+    .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:1rem;margin-top:1rem}
+    .po{display:block;text-decoration:none;color:inherit;border:1px solid #e5e7eb;border-radius:12px;padding:1rem;background:#fff}
+    .po.central{background:#f5f3ff}
+    .po:hover{border-color:#667eea;transform:translateY(-1px)}
+    .name{font-weight:700;color:#4f46e5}.badge{font-size:.75rem;background:#667eea;color:#fff;padding:.2rem .5rem;border-radius:999px}
+    .meta{color:#555;margin-top:.25rem}.sub{color:#777;font-size:.9rem;margin-top:.35rem}
+  </style>
+</head>
+<body>
+  <nav class="nav">
+    <a href="/" class="logo">🐌 Snaelmail</a>
+    <div class="nav-links">
+      <a href="/post-offices.html" class="btn">Post Offices</a>
+      <a href="/relay.html" class="btn">Relay</a>
+      <a href="/login.html" class="btn">Log In</a>
+      <a href="/signup.html" class="btn" style="background:#667eea;color:#fff;">Sign Up</a>
+    </div>
+  </nav>
+  <div class="wrap"><div class="card">
+    <h1>Post Offices</h1>
+    <p class="muted">Browse active Snaelmail post offices.</p>
+    <div class="toolbar">
+      <input id="q" placeholder="Search city, region, hostname...">
+      <button class="btn" id="near" type="button">Use my location</button>
+    </div>
+    <div id="status" class="muted">Loading post offices...</div>
+    <div id="list" class="grid"></div>
+  </div></div>
+  <script>
+  (function(){
+    const list=document.getElementById('list'), status=document.getElementById('status'), q=document.getElementById('q'), near=document.getElementById('near');
+    let relays=[], userLoc=null;
+    function distKm(aLat,aLon,bLat,bLon){const R=6371,toRad=d=>d*Math.PI/180;const dLat=toRad(bLat-aLat),dLon=toRad(bLon-aLon);const s1=Math.sin(dLat/2),s2=Math.sin(dLon/2);const h=s1*s1+Math.cos(toRad(aLat))*Math.cos(toRad(bLat))*s2*s2;return 2*R*Math.asin(Math.min(1,Math.sqrt(h)));}
+    function render(){
+      const term=(q.value||'').toLowerCase().trim();
+      let items=relays.filter(r=>!term || [r.hostname,r.city,r.region,r.cc].filter(Boolean).join(' ').toLowerCase().includes(term));
+      items=items.map(r=>({...r,_dist:userLoc?distKm(userLoc.lat,userLoc.lon,r.lat,r.lon):null}));
+      items.sort((a,b)=>{ if(a.central!==b.central) return a.central?-1:1; if(a._dist!=null&&b._dist!=null) return a._dist-b._dist; if(a._dist!=null) return -1; if(b._dist!=null) return 1; return (a.city||'').localeCompare(b.city||''); });
+      status.textContent=items.length ? items.length+' post office(s)'+(userLoc?' sorted by distance':'') : 'No post offices found.';
+      list.innerHTML=items.map(r=>`<a class="po ${r.central?'central':''}" href="/open-post-offices/${encodeURIComponent(r.hostname)}"><div style="display:flex;justify-content:space-between;gap:.5rem;"><div class="name">${r.city||r.hostname}</div>${r.central?'<span class="badge">Central</span>':''}</div><div class="meta">${[r.region,r.cc].filter(Boolean).join(', ')}</div><div class="sub">${r.hostname}</div><div class="sub">${r._dist!=null?r._dist.toFixed(1)+' km away · ':''}${r.letters_passed||0} letters handled</div></a>`).join('');
+    }
+    async function load(){ try{ const res=await fetch('/open-post-offices'); const data=await res.json(); relays=data.relays||[]; render(); }catch(e){ status.textContent='Could not load post offices.'; } }
+    q.addEventListener('input',render);
+    near.addEventListener('click',()=>{ if(!navigator.geolocation){status.textContent='Geolocation not supported.';return;} status.textContent='Getting your location...'; navigator.geolocation.getCurrentPosition(pos=>{userLoc={lat:pos.coords.latitude,lon:pos.coords.longitude}; render();},()=>{status.textContent='Could not get location.'; render();},{timeout:10000}); });
+    load();
+  })();
+  </script>
+</body>
+</html>

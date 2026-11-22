@@ -194,10 +194,8 @@
     <nav class="nav">
         <a href="/" class="logo">🐌 Snaelmail</a>
         <div class="nav-buttons">
-            <div class="nav-dd">
-                <button class="nav-dd-btn" id="poNavBtn" type="button">Post Offices ▾</button>
-                <div class="nav-dd-menu" id="poNavMenu"><div class="muted">Loading...</div></div>
-            </div>
+            <a href="/post-offices.html" class="btn btn-secondary">Post Offices</a>
+            <a href="/relay.html" class="btn btn-secondary">Relay</a>
             <a href="/login.html" class="btn btn-secondary">Log In</a>
             <a href="/signup.html" class="btn btn-primary">Sign Up</a>
         </div>
@@ -266,15 +264,8 @@
         const statusEl = document.getElementById('poStatus');
         const searchEl = document.getElementById('poSearch');
         const nearBtn = document.getElementById('poNearBtn');
-        const poNavBtn = document.getElementById('poNavBtn');
-        const poNavMenu = document.getElementById('poNavMenu');
         let relays = [];
         let userLoc = null;
-        if (poNavBtn && poNavMenu) {
-            poNavBtn.addEventListener('click', (e) => { e.stopPropagation(); poNavMenu.classList.toggle('open'); });
-            document.addEventListener('click', () => poNavMenu.classList.remove('open'));
-            poNavMenu.addEventListener('click', (e) => e.stopPropagation());
-        }
 
         function distKm(aLat, aLon, bLat, bLon) {
             const R = 6371, toRad = d => d * Math.PI / 180;
@@ -310,9 +301,6 @@
                     <div style="color:#777;font-size:.85rem;margin-top:.35rem;">${r._dist != null ? r._dist.toFixed(1) + ' km away · ' : ''}${r.letters_passed || 0} letters handled</div>
                 </a>
             `).join('');
-            if (poNavMenu) {
-                poNavMenu.innerHTML = items.length ? items.map(r => `<a href="/open-post-offices/${encodeURIComponent(r.hostname)}">${r.central ? '★ ' : ''}${r.city || r.hostname}${r.region ? ' — '+r.region : ''}</a>`).join('') : '<div class="muted">No post offices</div>';
-            }
         }
 
         async function load() {
