@@ -211,11 +211,18 @@
                 <div class="settings-section">
                     <h2>📧 IMAP Settings</h2>
                     <p class="setting-description" style="margin-bottom: 1rem;">Configure your email client to access your Snaelmail inbox</p>
+
+                    <div class="setting-item">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="imapEnabled" name="imapEnabled">
+                            <span>Enable IMAP access</span>
+                        </label>
+                    </div>
                     
                     <div class="setting-item">
                         <label for="imapPassword">IMAP Password</label>
                         <input type="password" id="imapPassword" name="imapPassword" placeholder="Enter IMAP password">
-                        <p class="setting-description">This password is used for email client access (not your login password)</p>
+                        <p class="setting-description">This password is used for IMAP client access</p>
                     </div>
                     
                     <div class="setting-item">
@@ -344,6 +351,7 @@
                     if (settings.imap_port) {
                         document.getElementById('imapPort').value = settings.imap_port;
                     }
+                    document.getElementById('imapEnabled').checked = settings.imap_enabled || false;
                     document.getElementById('popEnabled').checked = settings.pop_enabled || false;
                     if (settings.pop_host) document.getElementById('popHost').value = settings.pop_host;
                     if (settings.pop_port) document.getElementById('popPort').value = settings.pop_port;
@@ -442,6 +450,7 @@
             const settings = {
                 auto_add_tracking: document.getElementById('autoAddTracking').checked,
                 request_delivery_confirmation: document.getElementById('requireDeliveryConfirmation').checked,
+                imap_enabled: document.getElementById('imapEnabled').checked,
                 imap_password: document.getElementById('imapPassword').value,
                 imap_host: document.getElementById('imapHost').value,
                 imap_port: parseInt(document.getElementById('imapPort').value),
