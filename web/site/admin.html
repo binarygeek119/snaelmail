@@ -321,8 +321,9 @@
                         <textarea id="centralPMBio" style="width:100%;min-height:80px;padding:.75rem;border:1px solid #ddd;border-radius:8px;"></textarea>
 
                         <label style="display:block;margin:.75rem 0 .25rem;font-weight:600;">City Images (up to 6)</label>
+                        <div id="centralExistingPhotos" style="display:flex;flex-wrap:wrap;gap:.75rem;margin:.5rem 0;"></div>
                         <input id="centralPhotos" type="file" accept="image/*" multiple style="width:100%;">
-                        <p class="setting-description" style="color:#666;font-size:.9rem;">Selected images will be uploaded when you click Save Page.</p>
+                        <p class="setting-description" style="color:#666;font-size:.9rem;">Selected new images will be uploaded when you click Save Page. First image is the hero image.</p>
 
                         <label style="display:block;margin:.75rem 0 .25rem;font-weight:600;">Post Office Stamp (SVG or PNG)</label>
                         <input id="centralStamp" type="file" accept=".svg,image/svg+xml,image/png" style="width:100%;">
@@ -697,6 +698,7 @@
         }
         
         let centralRelayCache = null;
+        let centralPagePhotos = []; // [{filename, caption, existing:true}]
 
         // Load central post office
         async function loadCentral() {
@@ -777,10 +779,38 @@
             } catch (e) { msg.textContent = 'Error saving location.'; }
         }
 
+        function renderCentralPhotos() {
+            const el = document.getElementById('centralExistingPhotos');
+            if (!centralRelayCache) { el.innerHTML = ''; return; }
+            if (!centralPagePhotos.length) { el.innerHTML = '<div style="color:#666;font-size:.9rem;">No images yet.</div>'; return; }
+            el.innerHTML = centralPagePhotos.map((p, idx) => {
+                const url = `/open-post-offices/${encodeURIComponent(centralRelayCache.hostname)}/images/${encodeURIComponent(p.filename)}`;
+                const hero = idx === 0 ? '<span style="background:#667eea;color:white;padding:2px 8px;border-radius:999px;font-size:.75rem;">Hero</span>' : `<button class="btn" type="button" style="padding:.25rem .5rem;font-size:.8rem;" onclick="setCentralHero(${idx})">Set as Hero</button>`;
+                return `<div style="width:180px;border:1px solid #ddd;border-radius:8px;padding:.5rem;background:#fff;">
+                    <img src="${url}" alt="" style="width:100%;height:110px;object-fit:cover;border-radius:6px;background:#f3f4f6;">
+                    <div style="font-size:.8rem;color:#555;margin:.35rem 0;word-break:break-word;">${p.filename}</div>
+                    <div style="display:flex;gap:.35rem;flex-wrap:wrap;align-items:center;">${hero}<button class="btn" type="button" style="padding:.25rem .5rem;font-size:.8rem;background:#ef4444;" onclick="removeCentralPhoto(${idx})">Remove</button></div>
+                </div>`;
+            }).join('');
+        }
+
+        function setCentralHero(idx) {
+            if (idx <= 0 || idx >= centralPagePhotos.length) return;
+            const [p] = centralPagePhotos.splice(idx, 1);
+            centralPagePhotos.unshift(p);
+            renderCentralPhotos();
+        }
+
+        function removeCentralPhoto(idx) {
+            centralPagePhotos.splice(idx, 1);
+            renderCentralPhotos();
+        }
+
         async function loadCentralPageEditor(relay) {
             document.getElementById('centralViewLink').href = `/open-post-offices/${encodeURIComponent(relay.hostname)}`;
             let about = `Welcome to the ${relay.city} post office. This is the central hub of the Snaelmail network, where messages begin their journey across virtual post offices around the world. Our team carefully handles every letter, ensuring it travels through the network with care and collects postmarks along the way.`;
             let pmName = 'Postmaster', pmRole = 'Central Post Office', pmBio = 'Keeping the Snaelmail network moving, one letter at a time.';
+            centralPagePhotos = [];
             try {
                 const res = await fetch(`/api/admin/relays/${relay.id}/page`, { headers: { 'Authorization': 'Bearer ' + token } });
                 if (res.ok) {
@@ -793,6 +823,9 @@
                         pmName = pm.Name || pm.name || pmName;
                         pmRole = pm.Role || pm.role || pmRole;
                         pmBio = pm.Bio || pm.bio || pmBio;
+                        centralPagePhotos = (m.Photos || m.photos || []).slice()
+                            .sort((a,b)=>((a.Ord??a.ord??0)-(b.Ord??b.ord??0)))
+                            .map(ph => ({ filename: ph.Filename || ph.filename, caption: ph.Caption || ph.caption || '', existing: true }));
                     }
                 }
             } catch (e) { console.error(e); }
@@ -800,6 +833,7 @@
             document.getElementById('centralPMName').value = pmName;
             document.getElementById('centralPMRole').value = pmRole;
             document.getElementById('centralPMBio').value = pmBio;
+            renderCentralPhotos();
             document.getElementById('centralPageMsg').textContent = 'Edit the public page content and click Save Page.';
         }
 
@@ -817,16 +851,23 @@
             const msg = document.getElementById('centralPageMsg');
             msg.textContent = 'Saving...';
             const about = document.getElementById('centralAbout').value.trim();
-            const files = Array.from(document.getElementById('centralPhotos').files || []).slice(0, 6);
+            const existing = centralPagePhotos.slice(0, 6);
+            const remaining = Math.max(0, 6 - existing.length);
+            const files = Array.from(document.getElementById('centralPhotos').files || []).slice(0, remaining);
             const images = [];
             const photos = [];
+            for (let i = 0; i < existing.length; i++) {
+                const p = existing[i];
+                photos.push({ ord: i, filename: p.filename, caption: (p.caption || '').slice(0, 120) });
+            }
             for (let i = 0; i < files.length; i++) {
                 const f = files[i];
                 const ext = (f.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g,'') || 'jpg';
-                const filename = `${i}.${ext === 'jpeg' ? 'jpg' : ext}`;
+                const safeExt = ext === 'jpeg' ? 'jpg' : ext;
+                const filename = `photo-${Date.now()}-${i}.${safeExt}`;
                 const data = await fileToBase64(f);
                 images.push({ filename, data });
-                photos.push({ ord: i, filename, caption: f.name.replace(/\.[^.]+$/, '').slice(0, 120) });
+                photos.push({ ord: photos.length, filename, caption: f.name.replace(/\.[^.]+$/, '').slice(0, 120) });
             }
             const manifest = {
                 photos: photos,
@@ -863,6 +904,8 @@
                     return;
                 }
                 msg.textContent = 'Page saved. Status: ' + (data.status || 'ok') + (data.revision ? ' (revision ' + data.revision + ')' : '');
+                document.getElementById('centralPhotos').value = '';
+                await loadCentralPageEditor(centralRelayCache);
             } catch (e) {
                 console.error(e);
                 msg.textContent = 'Error saving page.';

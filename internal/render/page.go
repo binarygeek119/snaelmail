@@ -89,33 +89,17 @@ const pageTemplate = `<!DOCTYPE html>
       padding: 8px;
     }
     .stamp-mark svg, .stamp-mark img { max-width: 100%; max-height: 100%; }
-    .photos {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-      gap: 1rem;
-      margin: 2rem 0;
-    }
-    .photo {
-      position: relative;
-      aspect-ratio: 16/10;
-      overflow: hidden;
-      border-radius: 4px;
-    }
-    .photo img {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-    }
-    .caption {
-      position: absolute;
-      bottom: 0;
-      left: 0;
-      right: 0;
-      background: rgba(0,0,0,0.7);
-      color: white;
-      padding: 0.5rem;
-      font-size: 0.9rem;
-    }
+    .photos { margin: 2rem 0; }
+    .hero { position: relative; aspect-ratio: 16/10; overflow: hidden; border-radius: 8px; background: #e2e8f0; }
+    .hero img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .hero-nav { position: absolute; top: 50%; transform: translateY(-50%); background: rgba(15,23,42,.55); color: #fff; border: 0; width: 44px; height: 44px; border-radius: 999px; cursor: pointer; font-size: 1.5rem; line-height: 1; }
+    .hero-nav:hover { background: rgba(15,23,42,.75); }
+    .hero-prev { left: 12px; }
+    .hero-next { right: 12px; }
+    .hero-caption { position: absolute; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,.55); color: #fff; padding: .6rem .9rem; font-size: .95rem; }
+    .hero-dots { display:flex; gap:.4rem; justify-content:center; margin-top:.6rem; }
+    .hero-dot { width:10px; height:10px; border-radius:999px; border:0; background:#94a3b8; cursor:pointer; }
+    .hero-dot.active { background:#334155; }
     .about {
       background: var(--highlight);
       padding: 1.5rem;
@@ -179,14 +163,44 @@ const pageTemplate = `<!DOCTYPE html>
   </section>
   {{end}}
 
-  <section class="photos">
-    {{range .Manifest.Photos}}
-    <div class="photo">
-      <img src="/open-post-offices/{{$.Relay.Hostname}}/images/{{.Filename}}" alt="{{.Caption}}">
-      {{if .Caption}}<div class="caption">{{.Caption}}</div>{{end}}
+  {{if .Manifest.Photos}}
+  <section class="photos" id="photoGallery">
+    <div class="hero">
+      <img id="heroImg" src="/open-post-offices/{{.Relay.Hostname}}/images/{{(index .Manifest.Photos 0).Filename}}" alt="{{(index .Manifest.Photos 0).Caption}}">
+      {{if gt (len .Manifest.Photos) 1}}
+      <button class="hero-nav hero-prev" type="button" aria-label="Previous image" onclick="galleryNav(-1)">&#8249;</button>
+      <button class="hero-nav hero-next" type="button" aria-label="Next image" onclick="galleryNav(1)">&#8250;</button>
+      {{end}}
+      <div class="hero-caption" id="heroCaption">{{(index .Manifest.Photos 0).Caption}}</div>
     </div>
+    {{if gt (len .Manifest.Photos) 1}}
+    <div class="hero-dots" id="heroDots">
+      {{range $i, $p := .Manifest.Photos}}<button class="hero-dot{{if eq $i 0}} active{{end}}" type="button" aria-label="Image {{$i}}" onclick="galleryGo({{$i}})"></button>{{end}}
+    </div>
+    <script>
+      (function(){
+        var photos = [
+          {{range $i, $p := .Manifest.Photos}}{{if $i}},{{end}}{src:"/open-post-offices/{{$.Relay.Hostname}}/images/{{$p.Filename}}",caption:{{$p.Caption | printf "%q"}}}{{end}}
+        ];
+        var idx = 0;
+        function render(){
+          var p = photos[idx];
+          var img = document.getElementById('heroImg');
+          var cap = document.getElementById('heroCaption');
+          img.src = p.src; img.alt = p.caption || '';
+          cap.textContent = p.caption || '';
+          cap.style.display = p.caption ? 'block' : 'none';
+          var dots = document.querySelectorAll('.hero-dot');
+          dots.forEach(function(d,i){ d.classList.toggle('active', i===idx); });
+        }
+        window.galleryNav = function(d){ idx = (idx + d + photos.length) % photos.length; render(); };
+        window.galleryGo = function(i){ idx = i; render(); };
+        render();
+      })();
+    </script>
     {{end}}
   </section>
+  {{end}}
 
   <section class="about">
     <h2>About {{.Relay.City}}</h2>
