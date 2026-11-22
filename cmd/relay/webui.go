@@ -780,7 +780,7 @@ func (app *relayApp) setupPublishHandler(w http.ResponseWriter, r *http.Request)
 		"photos": photos,
 		"about": about,
 		"facts": []map[string]string{{"key":"City","value":s.City},{"key":"Region","value":s.Region},{"key":"Country","value":s.CC}},
-		"postmaster": map[string]string{"name":"Postmaster","role":"Relay Operator","bio":"Operating this Snaelmail post office."},
+		"postmaster": map[string]string{"name": func() string { if strings.TrimSpace(s.OwnerUsername)!="" { return s.OwnerUsername }; return "Postmaster" }(), "role":"Relay Operator","bio":"Operating this Snaelmail post office."},
 		"dispatch_times": []string{},
 		"classes": []string{"standard"},
 		"accent": map[string]string{"primary":"#333333","secondary":"#667eea","tertiary":"#764ba2","highlight":"#f5f3ff","muted":"#cccccc"},
@@ -830,7 +830,7 @@ func (app *relayApp) localPreviewManifest(s setupState) page.Manifest {
 		Photos: photos,
 		About: about,
 		Facts: []page.Fact{{Key:"City",Value:s.City},{Key:"Region",Value:s.Region},{Key:"Country",Value:s.CC}},
-		Postmaster: page.Postmaster{Name:"Postmaster", Role:"Relay Operator", Bio:"Operating this Snaelmail post office."},
+		Postmaster: page.Postmaster{Name: func() string { if strings.TrimSpace(s.OwnerUsername)!="" { return s.OwnerUsername }; return "Postmaster" }(), Role:"Relay Operator", Bio:"Operating this Snaelmail post office."},
 		Classes: []string{"standard"},
 		Accent: page.Accent{Primary:"#333333",Secondary:"#667eea",Tertiary:"#764ba2",Highlight:"#f5f3ff",Muted:"#cccccc"},
 	}
